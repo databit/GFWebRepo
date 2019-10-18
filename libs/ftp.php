@@ -26,10 +26,6 @@
  *  - 38 : Local filesystem error
  */
 
-function print_error($string, $message){
-	/*echo $string ." - ". $message;*/
-}
-
 if (!defined('CRLF')) {
 	define('CRLF', "\r\n");
 }
@@ -55,7 +51,7 @@ if (!extension_loaded('ftp')) {
 }
 if (!defined('FTP_NATIVE')) define('FTP_NATIVE', (function_exists('ftp_connect'))? 1 : 0);
 
-class IceFTP{
+class FTP{
 
 	/**
 	 * Server connection resource
@@ -132,7 +128,15 @@ class IceFTP{
 	var $_lineEndings = array ('UNIX' => "\n", 'MAC' => "\r", 'WIN' => "\r\n");
 
 	/**
-	 * IceFTP object constructor
+	 * Error description
+	 *
+	 * @access private
+	 * @var string
+	 */
+	var $_error = '';
+
+	/**
+	 * FTP object constructor
 	 *
 	 * @access protected
 	 * @param array $options Associative array of options to set
@@ -161,7 +165,7 @@ class IceFTP{
 	}
 
 	/**
-	 * IceFTP object destructor
+	 * FTP object destructor
 	 *
 	 * Closes an existing connection, if we have one
 	 *
@@ -179,7 +183,7 @@ class IceFTP{
 	 * if it doesn't already exist.
 	 *
 	 * This method must be invoked as:
-	 * 		<pre>  $ftp = &IceFTP::getInstance($host);</pre>
+	 * 		<pre>  $ftp = &FTP::getInstance($host);</pre>
 	 *
 	 * You may optionally specify a username and password in the parameters. If you do so,
 	 * you may not login() again with different credentials using the same object.
@@ -191,7 +195,7 @@ class IceFTP{
 	 * @param	array	$options	Array with any of these options: type=>[FTP_AUTOASCII|FTP_ASCII|FTP_BINARY], timeout=>(int)
 	 * @param	string	$user		Username to use for a connection
 	 * @param	string	$pass		Password to use for a connection
-	 * @return	IceFTP	The FTP Client object.
+	 * @return	FTP	The FTP Client object.
 	 * @since 1.5
 	 */
 	static function &getInstance($host = '127.0.0.1', $port = '21', $options = null, $user = null, $pass = null)
@@ -202,7 +206,7 @@ class IceFTP{
 
 		// Create a new instance, or set the options of an existing one
 		if (!isset ($instances[$signature]) || !is_object($instances[$signature])) {
-			$instances[$signature] = new IceFTP($options);
+			$instances[$signature] = new FTP($options);
 		} else {
 			$instances[$signature]->setOptions($options);
 		}
@@ -259,7 +263,7 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			$this->_conn = @ftp_connect($host, $port, $this->_timeout);
 			if ($this->_conn === false) {
-				print_error('30', 'IceFTP::connect: Could not connect to host "'.$host.'" on port '.$port);
+				$this->_logError('30', 'FTP::connect: Could not connect to host "'.$host.'" on port '.$port);
 				return false;
 			}
 			// Set the timeout for this connection
@@ -270,7 +274,7 @@ class IceFTP{
 		// Connect to the FTP server.
 		$this->_conn = @ fsockopen($host, $port, $errno, $err, $this->_timeout);
 		if (!$this->_conn) {
-			print_error('30', 'IceFTP::connect: Could not connect to host "'.$host.'" on port '.$port, 'Socket error number '.$errno.' and error message: '.$err);
+			$this->_logError('30', 'FTP::connect: Could not connect to host "'.$host.'" on port '.$port, 'Socket error number '.$errno.' and error message: '.$err);
 			return false;
 		}
 
@@ -279,7 +283,7 @@ class IceFTP{
 
 		// Check for welcome response code
 		if (!$this->_verifyResponse(220)) {
-			print_error('35', 'IceFTP::connect: Bad response', 'Server response: '.$this->_response.' [Expected: 220]');
+			$this->_logError('35', 'FTP::connect: Bad response', 'Server response: '.$this->_response.' [Expected: 220]');
 			return false;
 		}
 
@@ -306,12 +310,12 @@ class IceFTP{
 	 * @param string $pass Password to login to the server
 	 * @return boolean True if successful
 	 */
-	function login($user = 'anonymous', $pass = 'IceFTP@joomla.org') {
+	function login($user = 'anonymous', $pass = 'FTP@joomla.org') {
 
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (@ftp_login($this->_conn, $user, $pass) === false) {
-				print_error('30', 'IceFTP::login: Unable to login' );
+				$this->_logError('30', 'FTP::login: Unable to login. Username sent: '.$user .', Password sent: '.$pass);
 				return false;
 			}
 			return true;
@@ -319,7 +323,7 @@ class IceFTP{
 
 		// Send the username
 		if (!$this->_putCmd('USER '.$user, array(331, 503))) {
-			print_error('33', 'IceFTP::login: Bad Username', 'Server response: '.$this->_response.' [Expected: 331] Username sent: '.$user );
+			$this->_logError('33', 'FTP::login: Bad Username', 'Server response: '.$this->_response.' [Expected: 331] Username sent: '.$user );
 			return false;
 		}
 
@@ -330,7 +334,7 @@ class IceFTP{
 
 		// Send the password
 		if (!$this->_putCmd('PASS '.$pass, 230)) {
-			print_error('34', 'IceFTP::login: Bad Password', 'Server response: '.$this->_response.' [Expected: 230] Password sent: '.str_repeat('*', strlen($pass)));
+			$this->_logError('34', 'FTP::login: Bad Password', 'Server response: '.$this->_response.' [Expected: 230] Password sent: '.str_repeat('*', strlen($pass)));
 			return false;
 		}
 
@@ -369,7 +373,7 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (($ret = @ftp_pwd($this->_conn)) === false) {
-				print_error('35', 'IceFTP::pwd: Bad response' );
+				$this->_logError('35', 'FTP::pwd: Bad response' );
 				return false;
 			}
 			return $ret;
@@ -380,7 +384,7 @@ class IceFTP{
 
 		// Send print working directory command and verify success
 		if (!$this->_putCmd('PWD', 257)) {
-			print_error('35', 'IceFTP::pwd: Bad response', 'Server response: '.$this->_response.' [Expected: 257]' );
+			$this->_logError('35', 'FTP::pwd: Bad response', 'Server response: '.$this->_response.' [Expected: 257]' );
 			return false;
 		}
 
@@ -402,13 +406,13 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (($ret = @ftp_systype($this->_conn)) === false) {
-				print_error('35', 'IceFTP::syst: Bad response' );
+				$this->_logError('35', 'FTP::syst: Bad response' );
 				return false;
 			}
 		} else {
 			// Send print working directory command and verify success
 			if (!$this->_putCmd('SYST', 215)) {
-				print_error('35', 'IceFTP::syst: Bad response', 'Server response: '.$this->_response.' [Expected: 215]' );
+				$this->_logError('35', 'FTP::syst: Bad response', 'Server response: '.$this->_response.' [Expected: 215]' );
 				return false;
 			}
 			$ret = $this->_response;
@@ -439,7 +443,7 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (@ftp_chdir($this->_conn, $path) === false) {
-				print_error('35', 'IceFTP::chdir: Bad response' );
+				$this->_logError('35', 'FTP::chdir: Bad response' );
 				return false;
 			}
 			return true;
@@ -447,7 +451,7 @@ class IceFTP{
 
 		// Send change directory command and verify success
 		if (!$this->_putCmd('CWD '.$path, 250)) {
-			print_error('35', 'IceFTP::chdir: Bad response', 'Server response: '.$this->_response.' [Expected: 250] Path sent: '.$path );
+			$this->_logError('35', 'FTP::chdir: Bad response', 'Server response: '.$this->_response.' [Expected: 250] Path sent: '.$path );
 			return false;
 		}
 
@@ -467,7 +471,7 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (@ftp_site($this->_conn, 'REIN') === false) {
-				print_error('35', 'IceFTP::reinit: Bad response' );
+				$this->_logError('35', 'FTP::reinit: Bad response' );
 				return false;
 			}
 			return true;
@@ -475,7 +479,7 @@ class IceFTP{
 
 		// Send reinitialize command to the server
 		if (!$this->_putCmd('REIN', 220)) {
-			print_error('35', 'IceFTP::reinit: Bad response', 'Server response: '.$this->_response.' [Expected: 220]' );
+			$this->_logError('35', 'FTP::reinit: Bad response', 'Server response: '.$this->_response.' [Expected: 220]' );
 			return false;
 		}
 
@@ -495,7 +499,7 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (@ftp_rename($this->_conn, $from, $to) === false) {
-				print_error('35', 'IceFTP::rename: Bad response' );
+				$this->_logError('35', 'FTP::rename: Bad response' );
 				return false;
 			}
 			return true;
@@ -503,13 +507,13 @@ class IceFTP{
 
 		// Send rename from command to the server
 		if (!$this->_putCmd('RNFR '.$from, 350)) {
-			print_error('35', 'IceFTP::rename: Bad response', 'Server response: '.$this->_response.' [Expected: 320] From path sent: '.$from );
+			$this->_logError('35', 'FTP::rename: Bad response', 'Server response: '.$this->_response.' [Expected: 320] From path sent: '.$from );
 			return false;
 		}
 
 		// Send rename to command to the server
 		if (!$this->_putCmd('RNTO '.$to, 250)) {
-			print_error('35', 'IceFTP::rename: Bad response', 'Server response: '.$this->_response.' [Expected: 250] To path sent: '.$to );
+			$this->_logError('35', 'FTP::rename: Bad response', 'Server response: '.$this->_response.' [Expected: 250] To path sent: '.$to );
 			return false;
 		}
 
@@ -540,7 +544,7 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			if (@ftp_site($this->_conn, 'CHMOD '.$mode.' '.$path) === false) {
 				if($this->_OS != 'WIN') {
-					print_error('35', 'IceFTP::chmod: Bad response' );
+					$this->_logError('35', 'FTP::chmod: Bad response' );
 				}
 				return false;
 			}
@@ -550,7 +554,7 @@ class IceFTP{
 		// Send change mode command and verify success [must convert mode from octal]
 		if (!$this->_putCmd('SITE CHMOD '.$mode.' '.$path, array(200, 250))) {
 			if($this->_OS != 'WIN') {
-				print_error('35', 'IceFTP::chmod: Bad response', 'Server response: '.$this->_response.' [Expected: 200 or 250] Path sent: '.$path.' Mode sent: '.$mode);
+				$this->_logError('35', 'FTP::chmod: Bad response', 'Server response: '.$this->_response.' [Expected: 200 or 250] Path sent: '.$path.' Mode sent: '.$mode);
 			}
 			return false;
 		}
@@ -570,7 +574,7 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			if (@ftp_delete($this->_conn, $path) === false) {
 				if (@ftp_rmdir($this->_conn, $path) === false) {
-					print_error('35', 'IceFTP::delete: Bad response' );
+					$this->_logError('35', 'FTP::delete: Bad response' );
 					return false;
 				}
 			}
@@ -580,7 +584,7 @@ class IceFTP{
 		// Send delete file command and if that doesn't work, try to remove a directory
 		if (!$this->_putCmd('DELE '.$path, 250)) {
 			if (!$this->_putCmd('RMD '.$path, 250)) {
-				print_error('35', 'IceFTP::delete: Bad response', 'Server response: '.$this->_response.' [Expected: 250] Path sent: '.$path );
+				$this->_logError('35', 'FTP::delete: Bad response', 'Server response: '.$this->_response.' [Expected: 250] Path sent: '.$path );
 				return false;
 			}
 		}
@@ -599,7 +603,7 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (@ftp_mkdir($this->_conn, $path) === false) {
-				print_error('35', 'IceFTP::mkdir: Bad response' );
+				$this->_logError('35', 'FTP::mkdir: Bad response' );
 				return false;
 			}
 			return true;
@@ -607,7 +611,7 @@ class IceFTP{
 
 		// Send change directory command and verify success
 		if (!$this->_putCmd('MKD '.$path, 257)) {
-			print_error('35', 'IceFTP::mkdir: Bad response', 'Server response: '.$this->_response.' [Expected: 257] Path sent: '.$path );
+			$this->_logError('35', 'FTP::mkdir: Bad response', 'Server response: '.$this->_response.' [Expected: 257] Path sent: '.$path );
 			return false;
 		}
 		return true;
@@ -625,7 +629,7 @@ class IceFTP{
 		// If native FTP support is enabled lets use it...
 		if (FTP_NATIVE) {
 			if (@ftp_site($this->_conn, 'REST '.$point) === false) {
-				print_error('35', 'IceFTP::restart: Bad response' );
+				$this->_logError('35', 'FTP::restart: Bad response' );
 				return false;
 			}
 			return true;
@@ -633,7 +637,7 @@ class IceFTP{
 
 		// Send restart command and verify success
 		if (!$this->_putCmd('REST '.$point, 350)) {
-			print_error('35', 'IceFTP::restart: Bad response', 'Server response: '.$this->_response.' [Expected: 350] Restart point sent: '.$point );
+			$this->_logError('35', 'FTP::restart: Bad response', 'Server response: '.$this->_response.' [Expected: 350] Restart point sent: '.$point );
 			return false;
 		}
 
@@ -653,14 +657,14 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::create: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::create: Unable to use passive mode' );
 				return false;
 			}
 
 			$buffer = fopen((version_compare(PHP_VERSION, '5.1.0') >= 0) ? 'php://temp': 'buffer://tmp', 'r');
 			//$buffer = fopen('buffer://tmp' , 'r');
 			if (@ftp_fput($this->_conn, $path, $buffer, FTP_ASCII) === false) {
-				print_error('35', 'IceFTP::create: Bad response' );
+				$this->_logError('35', 'FTP::create: Bad response' );
 				fclose($buffer);
 				return false;
 			}
@@ -670,13 +674,13 @@ class IceFTP{
 
 		// Start passive mode
 		if (!$this->_passive()) {
-			print_error('36', 'IceFTP::create: Unable to use passive mode' );
+			$this->_logError('36', 'FTP::create: Unable to use passive mode' );
 			return false;
 		}
 
 		if (!$this->_putCmd('STOR '.$path, array (150, 125))) {
 			@ fclose($this->_dataconn);
-			print_error('35', 'IceFTP::create: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$path );
+			$this->_logError('35', 'FTP::create: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$path );
 			return false;
 		}
 
@@ -684,7 +688,7 @@ class IceFTP{
 		fclose($this->_dataconn);
 
 		if (!$this->_verifyResponse(226)) {
-			print_error('37', 'IceFTP::create: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$path );
+			$this->_logError('37', 'FTP::create: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$path );
 			return false;
 		}
 
@@ -708,14 +712,14 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::read: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::read: Unable to use passive mode' );
 				return false;
 			}
 
 			$tmp = fopen((version_compare(PHP_VERSION, '5.1.0') >= 0) ? 'php://temp': 'buffer://tmp', 'br+');
 			if (@ftp_fget($this->_conn, $tmp, $remote, $mode) === false) {
 				fclose($tmp);
-				print_error('35', 'IceFTP::read: Bad response' );
+				$this->_logError('35', 'FTP::read: Bad response' );
 				return false;
 			}
 			// Read tmp buffer contents
@@ -732,13 +736,13 @@ class IceFTP{
 
 		// Start passive mode
 		if (!$this->_passive()) {
-			print_error('36', 'IceFTP::read: Unable to use passive mode' );
+			$this->_logError('36', 'FTP::read: Unable to use passive mode' );
 			return false;
 		}
 
 		if (!$this->_putCmd('RETR '.$remote, array (150, 125))) {
 			@ fclose($this->_dataconn);
-			print_error('35', 'IceFTP::read: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
+			$this->_logError('35', 'FTP::read: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
 			return false;
 		}
 
@@ -757,7 +761,7 @@ class IceFTP{
 		}
 
 		if (!$this->_verifyResponse(226)) {
-			print_error('37', 'IceFTP::read: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
+			$this->_logError('37', 'FTP::read: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
 			return false;
 		}
 
@@ -781,12 +785,12 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::get: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::get: Unable to use passive mode' );
 				return false;
 			}
 
 			if (@ftp_get($this->_conn, $local, $remote, $mode) === false) {
-				print_error('35', 'IceFTP::get: Bad response' );
+				$this->_logError('35', 'FTP::get: Bad response' );
 				return false;
 			}
 			return true;
@@ -797,19 +801,19 @@ class IceFTP{
 		// Check to see if the local file can be opened for writing
 		$fp = fopen($local, "wb");
 		if (!$fp) {
-			print_error('38', 'IceFTP::get: Unable to open local file for writing', 'Local path: '.$local );
+			$this->_logError('38', 'FTP::get: Unable to open local file for writing', 'Local path: '.$local );
 			return false;
 		}
 
 		// Start passive mode
 		if (!$this->_passive()) {
-			print_error('36', 'IceFTP::get: Unable to use passive mode' );
+			$this->_logError('36', 'FTP::get: Unable to use passive mode' );
 			return false;
 		}
 
 		if (!$this->_putCmd('RETR '.$remote, array (150, 125))) {
 			@ fclose($this->_dataconn);
-			print_error('35', 'IceFTP::get: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
+			$this->_logError('35', 'FTP::get: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
 			return false;
 		}
 
@@ -824,7 +828,7 @@ class IceFTP{
 		fclose($fp);
 
 		if (!$this->_verifyResponse(226)) {
-			print_error('37', 'IceFTP::get: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
+			$this->_logError('37', 'FTP::get: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
 			return false;
 		}
 
@@ -854,12 +858,12 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::store: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::store: Unable to use passive mode' );
 				return false;
 			}
-
+    
 			if (@ftp_put($this->_conn, $remote, $local, $mode) === false) {
-				print_error('35', 'IceFTP::store: Bad response' );
+				$this->_logError('35', 'FTP::store: Bad response' );
 				return false;
 			}
 			return true;
@@ -871,18 +875,18 @@ class IceFTP{
 		if (@ file_exists($local)) {
 			$fp = fopen($local, "rb");
 			if (!$fp) {
-				print_error('38', 'IceFTP::store: Unable to open local file for reading', 'Local path: '.$local );
+				$this->_logError('38', 'FTP::store: Unable to open local file for reading', 'Local path: '.$local );
 				return false;
 			}
 		} else {
-			print_error('38', 'IceFTP::store: Unable to find local path', 'Local path: '.$local );
+			$this->_logError('38', 'FTP::store: Unable to find local path', 'Local path: '.$local );
 			return false;
 		}
 
 		// Start passive mode
 		if (!$this->_passive()) {
 			@ fclose($fp);
-			print_error('36', 'IceFTP::store: Unable to use passive mode' );
+			$this->_logError('36', 'FTP::store: Unable to use passive mode' );
 			return false;
 		}
 
@@ -890,7 +894,7 @@ class IceFTP{
 		if (!$this->_putCmd('STOR '.$remote, array (150, 125))) {
 			@ fclose($fp);
 			@ fclose($this->_dataconn);
-			print_error('35', 'IceFTP::store: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
+			$this->_logError('35', 'FTP::store: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
 			return false;
 		}
 
@@ -899,7 +903,7 @@ class IceFTP{
 			$line = fread($fp, 4096);
 			do {
 				if (($result = @ fwrite($this->_dataconn, $line)) === false) {
-					print_error('37', 'IceFTP::store: Unable to write to data port socket' );
+					$this->_logError('37', 'FTP::store: Unable to write to data port socket' );
 					return false;
 				}
 				$line = substr($line, $result);
@@ -910,7 +914,7 @@ class IceFTP{
 		fclose($this->_dataconn);
 
 		if (!$this->_verifyResponse(226)) {
-			print_error('37', 'IceFTP::store: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
+			$this->_logError('37', 'FTP::store: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
 			return false;
 		}
 
@@ -934,7 +938,7 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::write: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::write: Unable to use passive mode' );
 				return false;
 			}
 			
@@ -944,7 +948,7 @@ class IceFTP{
 			rewind($tmp);
 			if (@ftp_fput($this->_conn, $remote, $tmp, $mode) === false) {
 				fclose($tmp);
-				print_error('35', 'IceFTP::write: Bad response' );
+				$this->_logError('35', 'FTP::write: Bad response' );
 				return false;
 			}
 			fclose($tmp);
@@ -956,13 +960,13 @@ class IceFTP{
 
 		// Start passive mode
 		if (!$this->_passive()) {
-			print_error('36', 'IceFTP::write: Unable to use passive mode' );
+			$this->_logError('36', 'FTP::write: Unable to use passive mode' );
 			return false;
 		}
 
 		// Send store command to the FTP server
 		if (!$this->_putCmd('STOR '.$remote, array (150, 125))) {
-			print_error('35', 'IceFTP::write: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
+			$this->_logError('35', 'FTP::write: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$remote );
 			@ fclose($this->_dataconn);
 			return false;
 		}
@@ -970,7 +974,7 @@ class IceFTP{
 		// Write buffer to the data connection port
 		do {
 			if (($result = @ fwrite($this->_dataconn, $buffer)) === false) {
-				print_error('37', 'IceFTP::write: Unable to write to data port socket' );
+				$this->_logError('37', 'FTP::write: Unable to write to data port socket' );
 				return false;
 			}
 			$buffer = substr($buffer, $result);
@@ -981,7 +985,7 @@ class IceFTP{
 
 		// Verify that the server recieved the transfer
 		if (!$this->_verifyResponse(226)) {
-			print_error('37', 'IceFTP::write: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
+			$this->_logError('37', 'FTP::write: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$remote );
 			return false;
 		}
 
@@ -1007,7 +1011,7 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::listNames: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::listNames: Unable to use passive mode' );
 				return false;
 			}
 
@@ -1016,7 +1020,7 @@ class IceFTP{
 				if ($this->listDetails($path, 'files') === array()) {
 					return array();
 				}
-				print_error('35', 'IceFTP::listNames: Bad response' );
+				$this->_logError('35', 'FTP::listNames: Bad response' );
 				return false;
 			}
 			$list = preg_replace('#^'.preg_quote($path, '#').'[/\\\\]?#', '', $list);
@@ -1037,7 +1041,7 @@ class IceFTP{
 
 		// Start passive mode
 		if (!$this->_passive()) {
-			print_error('36', 'IceFTP::listNames: Unable to use passive mode' );
+			$this->_logError('36', 'FTP::listNames: Unable to use passive mode' );
 			return false;
 		}
 
@@ -1047,7 +1051,7 @@ class IceFTP{
 			if ($this->listDetails($path, 'files') === array()) {
 				return array();
 			}
-			print_error('35', 'IceFTP::listNames: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$path );
+			$this->_logError('35', 'FTP::listNames: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$path );
 			return false;
 		}
 
@@ -1059,7 +1063,7 @@ class IceFTP{
 
 		// Everything go okay?
 		if (!$this->_verifyResponse(226)) {
-			print_error('37', 'IceFTP::listNames: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$path );
+			$this->_logError('37', 'FTP::listNames: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$path );
 			return false;
 		}
 
@@ -1096,12 +1100,12 @@ class IceFTP{
 		if (FTP_NATIVE) {
 			// turn passive mode on
 			if (@ftp_pasv($this->_conn, true) === false) {
-				print_error('36', 'IceFTP::listDetails: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::listDetails: Unable to use passive mode' );
 				return false;
 			}
 
 			if (($contents = @ftp_rawlist($this->_conn, $path)) === false) {
-				print_error('35', 'IceFTP::listDetails: Bad response' );
+				$this->_logError('35', 'FTP::listDetails: Bad response' );
 				return false;
 			}
 		} else {
@@ -1109,7 +1113,7 @@ class IceFTP{
 
 			// Start passive mode
 			if (!$this->_passive()) {
-				print_error('36', 'IceFTP::listDetails: Unable to use passive mode' );
+				$this->_logError('36', 'FTP::listDetails: Unable to use passive mode' );
 				return false;
 			}
 
@@ -1120,7 +1124,7 @@ class IceFTP{
 
 			// Request the file listing
 			if (!$this->_putCmd(($recurse == true) ? 'LIST -R' : 'LIST'.$path, array (150, 125))) {
-				print_error('35', 'IceFTP::listDetails: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$path );
+				$this->_logError('35', 'FTP::listDetails: Bad response', 'Server response: '.$this->_response.' [Expected: 150 or 125] Path sent: '.$path );
 				@ fclose($this->_dataconn);
 				return false;
 			}
@@ -1133,7 +1137,7 @@ class IceFTP{
 
 			// Everything go okay?
 			if (!$this->_verifyResponse(226)) {
-				print_error('37', 'IceFTP::listDetails: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$path );
+				$this->_logError('37', 'FTP::listDetails: Transfer Failed', 'Server response: '.$this->_response.' [Expected: 226] Path sent: '.$path );
 				return false;
 			}
 
@@ -1173,7 +1177,7 @@ class IceFTP{
 			}
 		}
 		if (!$osType) {
-			print_error('SOME_ERROR_CODE', 'IceFTP::listDetails: Unrecognized directory listing format' );
+			$this->_logError('SOME_ERROR_CODE', 'FTP::listDetails: Unrecognized directory listing format' );
 			return false;
 		}
 
@@ -1271,6 +1275,29 @@ class IceFTP{
 		return $dir_list;
 	}
 
+
+	/**
+	 * return the last error messange
+	 *
+	 * @access public
+	 * @return string verbose error code and message
+	 */
+    function getLastError(){
+        return $this->_error;
+    }
+
+	/**
+	 * Store the last error messange
+	 *
+	 * @access private
+	 * @param string $string Integer error code
+	 * @param mixed $message String errore message
+	 * @return void
+	 */
+    function _logError($string, $message){
+        $this->_error = $string .' - '. $message;
+    }
+    
 	/**
 	 * Send command to the FTP server and validate an expected response code
 	 *
@@ -1283,13 +1310,13 @@ class IceFTP{
 
 		// Make sure we have a connection to the server
 		if (!is_resource($this->_conn)) {
-			print_error('31', 'IceFTP::_putCmd: Not connected to the control port' );
+			$this->_logError('31', 'FTP::_putCmd: Not connected to the control port' );
 			return false;
 		}
 
 		// Send the command to the server
 		if (!fwrite($this->_conn, $cmd."\r\n")) {
-			print_error('32', 'IceFTP::_putCmd: Unable to send command: '.$cmd );
+			$this->_logError('32', 'FTP::_putCmd: Unable to send command: '.$cmd );
 		}
 
 		return $this->_verifyResponse($expectedResponse);
@@ -1316,7 +1343,7 @@ class IceFTP{
 
 		// Catch a timeout or bad response
 		if (!isset($parts[1])) {
-			print_error('SOME_ERROR_CODE', 'IceFTP::_verifyResponse: Timeout or unrecognized response while waiting for a response from the server', 'Server response: '.$this->_response);
+			$this->_logError('SOME_ERROR_CODE', 'FTP::_verifyResponse: Timeout or unrecognized response while waiting for a response from the server', 'Server response: '.$this->_response);
 			return false;
 		}
 
@@ -1357,7 +1384,7 @@ class IceFTP{
 
 		// Make sure we have a connection to the server
 		if (!is_resource($this->_conn)) {
-			print_error('31', 'IceFTP::_passive: Not connected to the control port' );
+			$this->_logError('31', 'FTP::_passive: Not connected to the control port' );
 			return false;
 		}
 
@@ -1373,7 +1400,7 @@ class IceFTP{
 
 		// Catch a timeout or bad response
 		if (!isset($parts[1])) {
-			print_error('SOME_ERROR_CODE', 'IceFTP::_passive: Timeout or unrecognized response while waiting for a response from the server', 'Server response: '.$this->_response);
+			$this->_logError('SOME_ERROR_CODE', 'FTP::_passive: Timeout or unrecognized response while waiting for a response from the server', 'Server response: '.$this->_response);
 			return false;
 		}
 
@@ -1383,13 +1410,13 @@ class IceFTP{
 
 		// If it's not 227, we weren't given an IP and port, which means it failed.
 		if ($this->_responseCode != '227') {
-			print_error('36', 'IceFTP::_passive: Unable to obtain IP and port for data transfer', 'Server response: '.$this->_responseMsg);
+			$this->_logError('36', 'FTP::_passive: Unable to obtain IP and port for data transfer', 'Server response: '.$this->_responseMsg);
 			return false;
 		}
 
 		// Snatch the IP and port information, or die horribly trying...
 		if (preg_match('~\((\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+))\)~', $this->_responseMsg, $match) == 0) {
-			print_error('36', 'IceFTP::_passive: IP and port for data transfer not valid', 'Server response: '.$this->_responseMsg);
+			$this->_logError('36', 'FTP::_passive: IP and port for data transfer not valid', 'Server response: '.$this->_responseMsg);
 			return false;
 		}
 
@@ -1399,7 +1426,7 @@ class IceFTP{
 		// Connect, assuming we've got a connection.
 		$this->_dataconn =  @fsockopen($this->_pasv['ip'], $this->_pasv['port'], $errno, $err, $this->_timeout);
 		if (!$this->_dataconn) {
-			print_error('30', 'IceFTP::_passive: Could not connect to host '.$this->_pasv['ip'].' on port '.$this->_pasv['port'].'.  Socket error number '.$errno.' and error message: '.$err );
+			$this->_logError('30', 'FTP::_passive: Could not connect to host '.$this->_pasv['ip'].' on port '.$this->_pasv['port'].'.  Socket error number '.$errno.' and error message: '.$err );
 			return false;
 		}
 
@@ -1445,12 +1472,12 @@ class IceFTP{
 	function _mode($mode) {
 		if ($mode == FTP_BINARY) {
 			if (!$this->_putCmd("TYPE I", 200)) {
-				print_error('35', 'IceFTP::_mode: Bad response', 'Server response: '.$this->_response.' [Expected: 200] Mode sent: Binary' );
+				$this->_logError('35', 'FTP::_mode: Bad response', 'Server response: '.$this->_response.' [Expected: 200] Mode sent: Binary' );
 				return false;
 			}
 		} else {
 			if (!$this->_putCmd("TYPE A", 200)) {
-				print_error('35', 'IceFTP::_mode: Bad response', 'Server response: '.$this->_response.' [Expected: 200] Mode sent: Ascii' );
+				$this->_logError('35', 'FTP::_mode: Bad response', 'Server response: '.$this->_response.' [Expected: 200] Mode sent: Ascii' );
 				return false;
 			}
 		}

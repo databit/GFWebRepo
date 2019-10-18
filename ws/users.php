@@ -12,21 +12,36 @@ include_once '../libs/database.php';
 if(isset($_POST['cmd'])){
     switch($_POST['cmd']){
         case 'login':
-            $sQuery ="	SELECT *
-                        FROM `users` 
-                        WHERE `User` = '". $_POST['username'] ."' 
-                        AND `Password`='".md5($_POST['password'])."'
-                        LIMIT 1;";
+            if(LOGIN_PUREFTP_SQL){
+                $sQuery ="	SELECT *
+                            FROM `users` 
+                            WHERE `User` = '{$_POST['username']}' 
+                            AND `Password`='".md5($_POST['password'])."'
+                            LIMIT 1;";
 
-            $aValues = Database::instance()->fetchOneRow($sQuery, DB_DATABASE);
-            if (!empty($_POST['username']) && $aValues != null) {
-                $_SESSION['gfWebRepo']['user'] = array(	'username' =>	$aValues['User'],
-                                                        'password' =>	$aValues['Password']);
+                $aValues = Database::instance()->fetchOneRow($sQuery, DB_DATABASE);
+                if (!empty($_POST['username']) && $aValues != null) {
+                    $_SESSION['gfWebRepo']['user'] = array(	'username' =>	$aValues['User'],
+                                                            'password' =>	$aValues['Password']);
 
-                echo json_encode(array('success' => true));
+                    echo json_encode(array('success' => true));
 
-            } else 
-                echo json_encode(array('success' => false));
+                } else 
+                    echo json_encode(array('success' => false));
+
+            } else {
+                include_once '../libs/ftp.php';
+                $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_POST['username'], $_POST['password']);        
+
+                if($_mHandler->isConnected()){
+                    $_SESSION['gfWebRepo']['user'] = array(	'username' =>	$_POST['username'],
+                                                            'password' =>	$_POST['password']);
+
+                    echo json_encode(array('success' => true));
+
+                } else 
+                    echo json_encode(array('success' => false));
+            }
 
             break;
 

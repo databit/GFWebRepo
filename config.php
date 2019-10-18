@@ -5,4 +5,6 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_DATABASE', 'pureftpd');
 
+define('LOGIN_PUREFTP_SQL', false);
+
 ?>

@@ -1,4 +1,4 @@
-var gfWebRepoApp = angular.module('gfWebRepo', ['ngRoute', 'angularFileUpload']); //, 'ngMaterial', , 'angular.filter'
+var gfWebRepoApp = angular.module('gfWebRepo', ['ngRoute', 'angularFileUpload']); //, 'ngMaterial', , 
 
 gfWebRepoApp.config(function($httpProvider, $routeProvider, $locationProvider) {
 	$routeProvider
@@ -14,10 +14,10 @@ gfWebRepoApp.config(function($httpProvider, $routeProvider, $locationProvider) {
 				templateUrl: './views/explore.html',
 				controller: exploreControll
 			})
-		.otherwise({
+		/*.otherwise({
 				templateUrl: './views/login.html',
 				controller: loginControll
-			});
+			})*/;
 
 	//Enable cross domain calls
 	$httpProvider.defaults.useXDomain = true;
@@ -48,9 +48,11 @@ gfWebRepoApp.config(function($mdDateLocaleProvider) {
 });
 
 /** CONTROLLERS **/
-gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $timeout) { 
+gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $timeout, FileUploader) { 
     $rootScope.alertWindow = {type:'', message: '', visible: false};
     $rootScope.logged = false;
+    $rootScope.ftpUploader = new FileUploader({ url: 'ws/explore.php', alias: 'upload'});
+
     
     //Tools
     $rootScope._showAlert = function(typeMessage, icon, messageText) {
@@ -224,45 +226,188 @@ function profileControll($scope, $http, $timeout) {
 };
 
 function exploreControll($scope, $http, $timeout, FileUploader) { 
-    $scope.currentPath = '/';
-    $scope.ftpUploader = new FileUploader({ url: 'ws/explore.php', alias: 'upload' });
-    $scope.uploadFilesErrors;
-    
-    $scope.files = {};
-    $scope.folders = {};
+    $scope.currentPaths = [];
+    $scope.files = [];
+    $scope.folders = [];
+    $scope.auxItem = {};
 
-    // Get files and folders of root directory
-    $http.post('./ws/explore.php', 
-         {  cmd: 'list', 
-            path: '/' })
-            
-         .then(function(response) {
-            if(response.status == 200 && response.data.success){
-                $scope.folders = response.data.success;
-                $scope.files = response.data.files;
+    $scope.loading = false;
+    $scope.submitting = false;
+    $scope.search = '';
+    
+    $scope.extensions = {
+        'php':      { icon : 'file-code-o', editable: true },
+        'html':     { icon : 'file-code-o', editable: true },
+        'htm':      { icon : 'file-code-o', editable: true },
+        'htaccess': { icon : 'file-code-o', editable: true },
+        'css':      { icon : 'file-code-o', editable: true },
+        'js':       { icon : 'file-code-o', editable: true },
+        'py':       { icon : 'file-code-o', editable: true },
+        'asp':      { icon : 'file-code-o', editable: true },
+        'txt':      { icon : 'file-text-o', editable: true },
+        'ini':      { icon : 'file-text-o', editable: true },
+        'doc':      { icon : 'file-word-o', editable: false },
+        'docx':     { icon : 'file-word-o', editable: false },
+        'odt':      { icon : 'file-word-o', editable: false },
+        'xsl':      { icon : 'file-excel-o', editable: false },
+        'xslx':     { icon : 'file-excel-o', editable: false },
+        'ods':      { icon : 'file-excel-o', editable: false },
+        'ppt':      { icon : 'file-powerpoint-o', editable: false },
+        'pptx':     { icon : 'file-powerpoint-o', editable: false },
+        'odp':      { icon : 'file-powerpoint-o', editable: false },
+        'jpg':      { icon : 'file-image-o', editable: false },
+        'png':      { icon : 'file-image-o', editable: false },
+        'gif':      { icon : 'file-image-o', editable: false },
+        'bmp':      { icon : 'file-image-o', editable: false },
+        'tiff':     { icon : 'file-image-o', editable: false },
+        'zip':      { icon : 'file-archive-o', editable: false },
+        'rar':      { icon : 'file-archive-o', editable: false },
+        'gzip':     { icon : 'file-archive-o', editable: false },
+        '7z':       { icon : 'file-archive-o', editable: false },
+        'gz':       { icon : 'file-archive-o', editable: false },
+        'xz':       { icon : 'file-archive-o', editable: false },
+        'bz2':      { icon : 'file-archive-o', editable: false }
+    }
+
+    $scope.list = function (path){
+        if(!$scope.loading){
+            $scope.loading = true;
+
+            var realPath = $scope.currentPaths.join('/');
+
+            // Get files and folders of root directory
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'list', 
+                    path: realPath +'/'+ path })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        $scope.folders = response.data.folders;
+                        $scope.files = response.data.files;
+                        $scope.currentPaths.push(path);
+                        
+                    } else {
+                        $scope.files = [];
+                        $scope.folders = [];
+                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
+                    }
+                    $scope.search = '';
+                    $scope.loading = false;
+                });
+        }
+    };
+
+    $scope.listDirFromIndex = function (index){
+        var realPath = ''
+
+        if(!$scope.loading){
+            $scope.loading = true;
+            for(i=0; i<=index; i++)
+                realPath = realPath + $scope.currentPaths[i] + '/';
                 
-            } else {
-                $scope.files = {};
-                $scope.folders = {};
-                $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
+            // Get files and folders of root directory
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'list', 
+                    path: realPath })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        $scope.folders = response.data.folders;
+                        $scope.files = response.data.files;
+                        $scope.currentPaths = $scope.currentPaths.slice(0, index+1);
+                        
+                    } else {
+                        $scope.files = [];
+                        $scope.folders = [];
+                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
+                    }
+                    $scope.search = '';
+                    $scope.loading = false;
+                });
+        }
+    }
+
+    $scope.openContextMenu = function(event, key, isFile){
+        event.preventDefault();
+        $("#contextMenu")
+            .offset({ top: event.pageY, left: event.pageX})
+            .show();
+        last = event.timeStamp;
+
+        var isEditable = false;
+        if(isFile){
+            var ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
+            if(ext != '' && ext in $scope.extensions)
+                isEditable = $scope.extensions[ext].editable;
+        }
+            
+        $scope.auxItem = {
+            'key': key,
+            'file': isFile ? $scope.files[key] : $scope.folders[key],
+            'isFile' : isFile,
+            editable: isEditable 
+        };
+
+        $(document).click(function(event) {
+            var target = $(event.target);
+                if (!target.is(".popover") && !target.parents().is(".popover")) {
+                    if (last === event.timeStamp)
+                        return;
+                    $("#contextMenu").hide();
+                    //$scope.auxItem = {};
+                return false;
             }
         });
+    }
+    
+    $scope.openEdit = function(){ }
 
+    $scope.download = function(){ }
 
-    $scope.saveCircular = function (){
-        $scope.submitting = true;
+    $scope.openRename = function(){ }
 
-        // Upload the attachments
-        if($scope.ftpUploader.queue.length > 0){
-            $scope.uploadFilesErrors = [];
-            $scope.ftpUploader.uploadAll();
+    $scope.openMove = function(){ }
 
-        } 
+    $scope.openDelete = function(){ }
+    
+    $scope.delete = function (){
+        if(!$scope.loading){
+            $scope.loading = true;
+
+            var realPath = $scope.currentPaths.join('/');
+            console.log( $scope.auxItem);
+            // Get files and folders of root directory
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'delete', 
+                    path: realPath,
+                    filename: $scope.auxItem.file.name })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        if($scope.auxItem.isFile)
+                            $scope.files.splice($scope.auxItem.key, 1);
+                        else
+                            $scope.folders.splice($scope.auxItem.key, 1);
+                        
+                        $scope.auxItem = {};
+                        //$scope._showAlert('success', 'ok', (($scope.auxItem.isFile) ? 'Il file è stato eliminato' : 'La cartella é stata eliminata' )." con successo!");
+                        $('#deleteWindow').modal('hide');
+                        
+                    } else {
+                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante la cancellazione del file dal server");
+                    }
+                    $scope.search = '';
+                    $scope.loading = false;
+                });
+        }
     };
+
 
     // Upload File Callbacks
     $scope.ftpUploader.onBeforeUploadItem = function(item) {
-        Array.prototype.push.apply(item.formData, [{cmd: 'upload', path: $scope.currentPath }]);
+        var realPath = $scope.currentPaths.join('/');
+        Array.prototype.push.apply(item.formData, [{cmd: 'upload', path: realPath }]);
+        $('#uploadingFileMenu').addClass('open');
     };            
             
     $scope.ftpUploader.onSuccessItem = function(item, response, status, headers) {
@@ -274,18 +419,28 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
     $scope.ftpUploader.onCompleteAll = function() {
         $scope.submitting = false;
 
-        if($scope.uploadFilesErrors.length == 0)
+        /*if($scope.uploadFilesErrors.length == 0)
             $scope._showAlert('success', 'ok', "I file sono stati caricati con successo!");
 
         else
             $scope._showAlert('danger', 'remove', "Si e' verificato un errore durante il caricamento dei file. Prego riprovare.");
+            */
     };
     
-
-
+    $scope.list('');
 }
 
-gfWebRepoApp.directive('pwCheck', [function () {
+gfWebRepoApp
+.filter('getIcon', function() {
+    return function(file, $scope) {
+        var ext = file.name.slice((Math.max(0, file.name.lastIndexOf(".")) || Infinity) + 1);
+        if(ext != '' && ext in $scope.extensions)
+            return $scope.extensions[ext].icon;
+
+        return 'file-o';
+    }
+})
+.directive('pwCheck', [function () {
     return {
         require: 'ngModel',
         link: function (scope, elem, attrs, ctrl) {
@@ -330,6 +485,16 @@ gfWebRepoApp.directive('pwCheck', [function () {
                 });
         }
     }
-}]);
-
+}])
+.directive('ngRightClick', function($parse) {
+    return function(scope, element, attrs) {
+        var fn = $parse(attrs.ngRightClick);
+        element.bind('contextmenu', function(event) {
+            scope.$apply(function() {
+                event.preventDefault();
+                fn(scope, {$event:event});
+            });
+        });
+    };
+});
 
