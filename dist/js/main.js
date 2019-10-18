@@ -14,10 +14,10 @@ gfWebRepoApp.config(function($httpProvider, $routeProvider, $locationProvider) {
 				templateUrl: './views/explore.html',
 				controller: exploreControll
 			})
-		/*.otherwise({
+		.otherwise({
 				templateUrl: './views/login.html',
 				controller: loginControll
-			})*/;
+			});
 
 	//Enable cross domain calls
 	$httpProvider.defaults.useXDomain = true;
@@ -36,7 +36,7 @@ gfWebRepoApp.config(function($mdDateLocaleProvider) {
     //$mdDateLocaleProvider.formatDate = function(date) {
     $mdDateLocaleProvider.months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
     $mdDateLocaleProvider.shortMonths = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-    $mdDateLocaleProvider.days = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+    $mdDateLocaleProvider.days = ['domenica', 'lunedÃ¬', 'martedÃ¬', 'mercoledÃ¬', 'giovedÃ¬', 'venerdÃ¬', 'sabato'];
     $mdDateLocaleProvider.shortDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 
     // Can change week display to start on Monday.
@@ -68,6 +68,15 @@ gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $time
 function loginControll($scope, $rootScope, $http, $route, $routeParams, $location, $filter) {
     $scope.username = '';
     $scope.password = '';
+
+    $http.post('./ws/users.php', { cmd: 'is-logged' })
+         .then(function(response) {
+            if(response.status == 200 && response.data.success){
+                $rootScope.logged = true;
+                $location.path('/explore');
+            
+            }
+        });
     
     $scope.doLogin = function() {
         $http.post('./ws/users.php', 
@@ -192,16 +201,15 @@ function profileControll($scope, $http, $timeout) {
     $scope.profile = Array();
 
     //Get the user profile
-    $http.post('./ws/profile.php', 
+    $http.post('./ws/users.php', 
             {   'cmd': 'get-profile' })
         .then(function(response) {
             $scope.profile =  response.data;
         });
 
     $scope.editProfile = function() {
-        $http.post('./ws/profile.php', 
+        $http.post('./ws/users.php', 
                 {   'cmd': 'edit-profile',
-                    'realname': $scope.profile.realname,
                     'passwordNew': $scope.profile.passwordNew,
                     'passwordConfirm': $scope.profile.passwordConfirm
                 })
@@ -210,7 +218,7 @@ function profileControll($scope, $http, $timeout) {
                     $scope.profile.passwordNew = '';
                     $scope.profile.passwordConfirm = '';
 
-                    $scope._showAlert('success', 'ok', "Il profilo è stato modificato con successo!");
+                    $scope._showAlert('success', 'ok', "Il profilo Ã¨ stato modificato con successo!");
                     $('#editUserWindow').modal('hide');
 
                  } else {
@@ -290,6 +298,7 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
                         $scope.files = [];
                         $scope.folders = [];
                         $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
+                        $location.path('/login');
                     }
                     $scope.search = '';
                     $scope.loading = false;
@@ -390,7 +399,7 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
                             $scope.folders.splice($scope.auxItem.key, 1);
                         
                         $scope.auxItem = {};
-                        //$scope._showAlert('success', 'ok', (($scope.auxItem.isFile) ? 'Il file è stato eliminato' : 'La cartella é stata eliminata' )." con successo!");
+                        //$scope._showAlert('success', 'ok', (($scope.auxItem.isFile) ? 'Il file Ã¨ stato eliminato' : 'La cartella Ã© stata eliminata' )." con successo!");
                         $('#deleteWindow').modal('hide');
                         
                     } else {

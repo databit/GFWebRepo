@@ -11,10 +11,26 @@ include_once '../libs/database.php';
 
 if(isset($_POST['cmd'])){
     switch($_POST['cmd']){
+        case 'is-logged':
+            if(LOGIN_PUREFTP_SQL){
+                echo json_encode(array('success' => !empty($_SESSION['gfWebRepo']['user'])));
+
+            } else {
+                include_once '../libs/ftp.php';
+                if(!empty($_SESSION['gfWebRepo']['user'])){
+                    $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+
+                    echo json_encode(array('success' => $_mHandler->isConnected()));//->login($_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password'])));
+
+                } else 
+                    echo json_encode(array('success' => false));
+            }
+            break;
+            
         case 'login':
             if(LOGIN_PUREFTP_SQL){
                 $sQuery ="	SELECT *
-                            FROM `users` 
+                            FROM `ftpd` 
                             WHERE `User` = '{$_POST['username']}' 
                             AND `Password`='".md5($_POST['password'])."'
                             LIMIT 1;";
@@ -46,9 +62,9 @@ if(isset($_POST['cmd'])){
             break;
 
         case 'get-profile':
-            $sQuery="   SELECT `username`, `realname`
-                        FROM `users`
-                        WHERE `id` = '{$_SESSION['icecode']['user']['id']}'
+            $sQuery="   SELECT `User`
+                        FROM `ftpd`
+                        WHERE `User` = '{$_SESSION['gfWebRepo']['user']['username']}'
                         LIMIT 1;";
 
             echo json_encode(Database::instance()->fetchOneRow($sQuery));
@@ -63,13 +79,12 @@ if(isset($_POST['cmd'])){
                     die(json_encode(array('success' => false, 'error' => 'password-too-short')));
 
                 else {
-                    $sQuery = sprintf("	UPDATE `users` 
-                                        SET `password` = '%s',
-                                            `realname` = '%s'
-                                         WHERE `id` = '%d';",
-                                        md5($_POST['passwordNew']));// ,Text::toUtf8($_POST['realname']), $_SESSION['icecode']['user']['id'] );
-                                        
-                    $_SESSION['icecode']['user']['realname'] = $_POST['realname'];
+                    $sQuery = sprintf("	UPDATE `ftpd` 
+                                        SET `Password` = '%s'
+                                         WHERE `User` = '%s';",
+                                        md5($_POST['passwordNew']), $_SESSION['gfWebRepo']['user']['username']);
+
+                    $_SESSION['gfWebRepo']['user']['password'] = $_POST['passwordNew'];
                 }
             } else {
                 /*$sQuery = sprintf("	UPDATE `users` 
