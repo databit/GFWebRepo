@@ -18,9 +18,6 @@
   <!-- Custom CSS -->
   <link href="./dist/css/sb-admin-2.min.css" rel="stylesheet">
 
-  <!-- Morris Charts CSS -->
-  <link href="./vendor/morrisjs/morris.css" rel="stylesheet">
-
   <!-- Custom Fonts -->
   <link href="./vendor/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
 
@@ -122,7 +119,6 @@
   <script src="./vendor/angular/angular-aria.min.js"></script>
   <script src="./vendor/angular/angular-cookies.min.js"></script>
   <script src="./vendor/angular/angular-loader.min.js"></script>
-  <script src="./vendor/angular/angular-filter.min.js"></script>
   <script src="./vendor/angular/angular-message-format.min.js"></script>
   <script src="./vendor/angular/angular-messages.min.js"></script>
   <script src="./vendor/angular/angular-parse-ext.min.js"></script>
@@ -135,7 +131,7 @@
   <script src="./dist/js/angular-file-upload.min.js"></script>
 
   <!-- Custom Theme JavaScript -->
-  <script src="./dist/js/sb-admin-2.js"></script>
+  <script src="./dist/js/sb-admin-2.min.js"></script>
 
   <!-- Custom logic -->
   <script src="./dist/js/main.js"></script>
