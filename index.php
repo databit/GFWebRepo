@@ -36,12 +36,6 @@
   <div id="wrapper" ng-app="gfWebRepo">
    <!-- Navigation -->
    <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0" ng-controller="navControll">
-    <div class="alert alert-window" ng-class="alertWindow.type" ng-show="alertWindow.visible" id="alertWindow" role="alert">
-     <i class="glyphicon pull-left h-spacer glyphicon-{{alertWindow.icon}}"><![CDATA[]]></i>
-     {{alertWindow.message || trustAsHTML}}
-    </div>
-
-
     <div class="navbar-header">
      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
       <span class="sr-only">Toggle navigation</span>
@@ -51,7 +45,6 @@
      </button>
      <a class="navbar-brand" href="index.php">Web Repository - I.I.S. "Galileo Ferraris" - Ragusa</a>
     </div>
-    <!-- /.navbar-header -->
 
     <ul class="nav navbar-top-links navbar-right">
      <li ng-show="!logged">
@@ -101,14 +94,18 @@
      </li>
      <!-- /.dropdown -->
     </ul>
-    <!-- /.navbar-top-links -->
+
+    <!-- Alert message box -->
+    <div class="alert alert-window" ng-class="alertWindow.type" ng-show="alertWindow.visible" id="alertWindow" role="alert">
+     <i class="glyphicon pull-left h-spacer glyphicon-{{alertWindow.icon}}"><![CDATA[]]></i>
+     <span ng-bind-html="alertWindow.message | trustAsHtml"></span>
+    </div>
 
    </nav>
 
    <div ng-view></div>
-   <!-- /#page-wrapper -->
+
   </div>
-  <!-- /#wrapper -->
 
   <!-- jQuery -->
   <script src="./vendor/jquery/jquery.min.js"></script>

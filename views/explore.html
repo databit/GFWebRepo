@@ -1,106 +1,147 @@
-<div id="page-wrapper" nv-file-drop="" uploader="ftpUploader" filters="queueLimit">
- <div ng-class="{'col-lg-9': ftpUploader.queue.length > 0, 'col-lg-12': ftpUploader.queue.length == 0}" >
-  <div class="row">
-   <div class="col-lg-7">
-    <h4>
-     <span ng-repeat="(key, currentPath) in currentPaths">
-      <a href="" ng-click="listDirFromIndex(0)" ng-show="key == 0">
-       <i class="fa fa-home fa-2x"></i></a>
-      <a href="" ng-click="listDirFromIndex(key)" ng-show="key != 0">{{currentPath}} </a> /
-     </span>
-    </h4>
-   </div>
-   <div class="col-lg-2">
-    <span class="btn btn-theme btn-primary btn-file v-spacer pull-right">
-     <i class="fa fa-plus fa-fw"></i> Aggiungi file <input type="file" nv-file-select uploader="ftpUploader" multiple />
-    </span>
-   </div>
-   <div class="col-lg-3">
-    <div class="input-group v-spacer">
-     <input type="text" class="form-control" ng-model="search" placeholder="Filtra file e cartelle" />
-     <span class="input-group-addon">
-      <i class="glyphicon glyphicon-search"></i>
-     </span>
-    </div>  
-   </div>
-  </div>
-
-  <div class="row" nv-file-over="" uploader="ftpUploader">
-   <a class="col-lg2 col-md-2 v-spacer text-center" ng-repeat="(key, folder) in folders | filter:{name:search}" ng-dblclick="list(folder.name)" ng-right-click="openContextMenu($event, key, false)">
-    <i class="fa fa-folder fa-5x"></i><br />
-    {{folder.name}}
-   </a>
-
-   <a class="col-lg2 col-md-2 v-spacer text-center" ng-repeat="(key, file) in files | filter:{name:search}" ng-dblclick="openFile(key)" ng-right-click="openContextMenu($event, key, true)">
-    <i class="fa fa-{{file | getIcon:this}} fa-5x"></i><br />
-    {{file.name}}
-   </a>
-
-   <a class="col-lg2 col-md-2 v-spacer text-center text-success" ng-click="openCreate(false)" data-toggle="modal" data-target="#newWindow">
-    <i class="fa fa-folder fa-5x"></i><br /> Nuova cartella
-   </a>
-
-   <a class="col-lg2 col-md-2 v-spacer text-center text-success" ng-click="openCreate(true)" data-toggle="modal" data-target="#newWindow">
-    <i class="fa fa-file fa-5x"></i><br /> Nuovo file
-   </a>
-
-  </div>
+<!-- Loading layer -->
+<div class="modal modal-open fade in show"  ng-show="loading">
+ <div class="loader"></div>
 </div>
- 
- <div class="v-spacer" ng-class="{'col-lg-3': ftpUploader.queue.length > 0 && !ftpUploader.isUploading, 'hide': ftpUploader.queue.length == 0 || ftpUploader.isUploading}" >
-  <div class="panel panel-default" ng-show="ftpUploader.queue.length > 0">
-   <ul class="list-group">
-    <li class="list-group-item" ng-repeat="(key, attachment) in ftpUploader.queue">
-     <span ng-bind="attachment.file.name"></span>
-     <button type="button" ng-click="attachment.remove()" class="btn btn-danger btn-xs pull-right">
-      <span class="glyphicon glyphicon-trash"></span>
-     </button>
-    </li>
-   </ul>
-   <div class="panel-footer">
-    <button type="button" class="btn btn-success btn-xs" ng-click="ftpUploader.uploadAll()" ng-disabled="!ftpUploader.getNotUploadedItems().length">
-     <span class="glyphicon glyphicon-upload"></span> Carica!
-    </button>
-    <button type="button" class="btn btn-warning btn-xs" ng-click="ftpUploader.cancelAll()" ng-disabled="!ftpUploader.isUploading">
-     <span class="glyphicon glyphicon-ban-circle"></span> Annulla
-    </button>
-    <button type="button" class="btn btn-danger btn-xs" ng-click="ftpUploader.clearQueue()" ng-disabled="!ftpUploader.queue.length">
-     <span class="glyphicon glyphicon-trash"></span> Rimuovi tutti
-    </button>
+<div class="modal-backdrop fade in" ng-show="loading"></div>
+
+<!-- Main page -->
+<div id="page-wrapper" nv-file-drop="" uploader="ftpUploader" filters="queueLimit">
+ <div ng-show="!showEditor">
+  <div ng-class="{'col-lg-9': ftpUploader.queue.length > 0, 'col-lg-12': ftpUploader.queue.length == 0}" >
+   <div class="row">
+    <div class="col-lg-7 col-md-6 col-sm-12 col-xs-12">
+     <h4>
+      <span ng-repeat="(key, currentPath) in currentPaths">
+       <a ng-click="listDirFromIndex(0)" ng-show="key == 0">
+        <i class="fa fa-home fa-2x"></i></a>
+       <a ng-click="listDirFromIndex(key)" ng-show="key != 0">{{currentPath}} </a> /
+      </span>
+     </h4>
+    </div>
+    <div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
+     <div class="btn-group v-spacer pull-right" role="group">
+      <button class="btn btn-theme btn-success btn-file">
+       <i class="glyphicon glyphicon-plus"></i> Aggiungi file <input type="file" nv-file-select uploader="ftpUploader" multiple />
+      </button>
+
+      <div class="btn-group" role="group">
+       <button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+         <span class="caret"></span>
+       </button>
+       <ul class="dropdown-menu">
+         <li>
+          <a ng-click="openCreate(false)" data-toggle="modal" data-target="#newWindow">
+           <i class="fa fa-folder"></i> Nuova cartella
+          </a>
+         </li>
+         <li>
+          <a ng-click="openCreate(true)" data-toggle="modal" data-target="#newWindow">
+           <i class="fa fa-file"></i> Nuovo file
+          </a>
+         </li>
+        </ul>
+      </div>
+     </div>    
+    </div>
+    <div class="col-lg-3 col-md-3 col-sm-8 col-xs-7">
+     <div class="input-group v-spacer">
+      <input type="text" class="form-control" ng-model="search" placeholder="Filtra file e cartelle" />
+      <span class="input-group-addon">
+       <i class="glyphicon glyphicon-search"></i>
+      </span>
+     </div>  
+    </div>
    </div>
+
+   <!-- Files and folders list -->
+   <div class="row" nv-file-over="" uploader="ftpUploader">
+    <a class="col-lg-1 col-md-2 col-sm-3 col-xs-4 v-spacer text-center filename" ng-repeat="(key, folder) in folders | filter:{name:search}" ng-dblclick="list(folder.name)" ng-right-click="openContextMenu($event, key, false)">
+     <i class="fa fa-folder fa-4x"></i><br />{{folder.name}}
+    </a>
+
+    <a class="col-lg-1 col-md-2 col-sm-3 col-xs-4 v-spacer text-center filename" ng-repeat="(key, file) in files | filter:{name:search}" ng-dblclick="doDefaultActionFile(key)" ng-right-click="openContextMenu($event, key, true)" >
+     <i class="fa fa-{{file | getIcon:this}} fa-4x"></i><br />{{file.name}}
+    </a>
+   </div>
+ </div>
+  
+  <div class="v-spacer" ng-class="{'col-lg-3': ftpUploader.queue.length > 0 && !ftpUploader.isUploading, 'hide': ftpUploader.queue.length == 0 || ftpUploader.isUploading}" >
+   <div class="panel panel-default" ng-show="ftpUploader.queue.length > 0">
+    <ul class="list-group">
+     <li class="list-group-item" ng-repeat="(key, attachment) in ftpUploader.queue">
+      <span ng-bind="attachment.file.name"></span>
+      <button type="button" ng-click="attachment.remove()" class="btn btn-danger btn-xs pull-right">
+       <span class="glyphicon glyphicon-trash"></span>
+      </button>
+     </li>
+    </ul>
+    <div class="panel-footer">
+     <button type="button" class="btn btn-success btn-xs" ng-click="ftpUploader.uploadAll()" ng-disabled="!ftpUploader.getNotUploadedItems().length">
+      <span class="glyphicon glyphicon-upload"></span> Carica!
+     </button>
+     <button type="button" class="btn btn-warning btn-xs" ng-click="ftpUploader.cancelAll()" ng-disabled="!ftpUploader.isUploading">
+      <span class="glyphicon glyphicon-ban-circle"></span> Annulla
+     </button>
+     <button type="button" class="btn btn-danger btn-xs" ng-click="ftpUploader.clearQueue()" ng-disabled="!ftpUploader.queue.length">
+      <span class="glyphicon glyphicon-trash"></span> Rimuovi tutti
+     </button>
+    </div>
+   </div> 
   </div> 
  </div>
- 
+
+ <!-- Code editor -->
+ <div class="col-xs-12" ng-show="showEditor">
+  <div class="row" id="editorTitle">
+   <h4>Modifica <b>{{auxItem.file.name}}</b></h4>
+  </div>
+
+  <div class="row">
+   <textarea id="CodeMirrorEditor"></textarea>
+   <div class="clearfix"></div>
+  </div>  
+
+  <div class="row v-spacer text-right" id="editorCommand">
+   <button class="btn btn-success h-spacer" ng-click="saveFile()">
+    <i class="fa fa-floppy-o" aria-hidden="true"></i> Salva
+   </button>
+   <button class="btn btn-default" ng-click="showEditor = false">
+    <i class="fa fa-undo" aria-hidden="true"></i> Annulla
+   </button>
+  </div>
+ </div>
 </div>
 
+<!-- Right click context menu -->
 <ul id="contextMenu" class="dropdown-menu" role="menu">
  <li>
-  <a href="" ng-show="auxItem.editable" ng-click="openEditor()"  data-toggle="modal" data-target="#editorWindow">
+  <a ng-show="auxItem.editable" ng-click="openEditor()">
     <i class="fa fa-pencil fa-fw"></i> Modifica
   </a>
  </li>
  <li>
-  <a href="" ng-show="auxItem.isFile" ng-click="download()">
+  <a ng-show="auxItem.isFile" ng-click="download()">
     <i class="fa fa-download fa-fw"></i> Scarica
   </a>
  </li>
  <li>
-  <a href="" data-toggle="modal" data-target="#renameWindow">
+  <a data-toggle="modal" data-target="#renameWindow" ng-click="$('#renameFilename').select();">
    <i class="fa fa-font fa-fw"></i> Rinomina
   </a>
  </li>
  <li>
-  <a href="" ng-click="openMove()">
+  <a data-toggle="modal" data-target="#moveWindow">
    <i class="fa fa-arrows fa-fw"></i> Sposta
   </a>
  </li>
  <li>
-  <a href="" data-toggle="modal" data-target="#deleteWindow">
+  <a data-toggle="modal" data-target="#deleteWindow">
    <i class="fa fa-trash fa-fw"></i> Elimina
   </a>
  </li>
 </ul>
 
+<!-- Windows -->
 <div id="deleteWindow" class="modal fade">
  <div class="modal-dialog">
   <div class="modal-content">
@@ -109,11 +150,15 @@
     <h4 class="modal-title">Conferma cancellazione file</h4>
    </div>
    <div class="modal-body">
-    <h3>Sei sicuro di voler eliminare il file <b>{{auxItem.file.name}}</b>?</h3>
+    <h4>Sei sicuro di voler eliminare il file <b>{{auxItem.file.name}}</b>?</h4>
     <div class="row">
      <div class="col-md-12 text-right">
-      <button class="btn btn-danger" ng-click="delete()">Si</button>
-      <button class="btn btn-primary" data-dismiss="modal">No</button>
+      <button class="btn btn-danger h-spacer" ng-click="delete()">
+       <i class="fa fa-trash" aria-hidden="true"></i> Elimina
+      </button>
+      <button class="btn btn-default" data-dismiss="modal">
+      <i class="fa fa-undo" aria-hidden="true"></i> Annulla
+      </button>
      </div>
     </div>
    </div>
@@ -122,7 +167,7 @@
 </div>
 
 <div id="renameWindow" class="modal fade">
- <div class="modal-dialog modal-sm">
+ <div class="modal-dialog">
   <div class="modal-content">
    <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -131,14 +176,18 @@
    <div class="modal-body">
     <div class="row v-spacer">
      <div class="col-md-12 text-right">
-      <input type="text" class="form-control" ng-model="newFilename" placeholder="Inserisci il nome del file" required />
+      <input type="text" class="form-control" id="renameFilename" ng-model="renameFilename" placeholder="Inserisci il nome del file" required autofocus />
      </div>  
     </div>  
 
     <div class="row">
      <div class="col-md-12 text-right">
-      <button class="btn btn-success" ng-click="rename()">Rinomina</button>
-      <button class="btn btn-default" data-dismiss="modal">Annulla</button>
+      <button class="btn btn-success h-spacer" ng-click="rename()">
+       <i class="fa fa-pencil" aria-hidden="true"></i> Rinomina
+      </button>
+      <button class="btn btn-default" data-dismiss="modal">
+       <i class="fa fa-undo" aria-hidden="true"></i> Annulla
+      </button>
      </div>
     </div>
    </div>
@@ -147,7 +196,7 @@
 </div>
 
 <div id="newWindow" class="modal fade">
- <div class="modal-dialog modal-sm">
+ <div class="modal-dialog">
   <div class="modal-content">
    <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -156,42 +205,53 @@
    <div class="modal-body">
     <div class="row v-spacer">
      <div class="col-md-12 text-right">
-      <input type="text" class="form-control" ng-model="auxItem.filename" placeholder="Inserisci il nome del file" required />
+      <input type="text" class="form-control" id="newFilename" ng-model="auxItem.filename" placeholder="Inserisci il nome del file" required  autofocus/>
      </div>  
     </div>  
 
     <div class="row">
      <div class="col-md-12 text-right">
-      <button class="btn btn-success" ng-click="create()">Salva</button>
-      <button class="btn btn-default" data-dismiss="modal">Annulla</button>
+      <button class="btn btn-success h-spacer" ng-click="create()">
+       <i class="fa fa-floppy-o" aria-hidden="true"></i> Salva
+      </button>
+      <button class="btn btn-default" data-dismiss="modal">
+       <i class="fa fa-undo" aria-hidden="true"></i> Annulla
+      </button>
      </div>
     </div>
    </div>
   </div>
  </div>
 </div>
- 
- 
-<div id="editorWindow" class="modal fade">
+
+<div id="moveWindow" class="modal fade">
  <div class="modal-dialog modal-lg">
   <div class="modal-content">
    <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h4 class="modal-title">Modifica {{auxItem.file.name}}</h4>
+    <h4 class="modal-title">Sposta {{auxItem.file.name}}</h4>
    </div>
    <div class="modal-body">
+   
+   
+   
     <div class="row v-spacer">
-     <div class="col-md-12">
-      <textarea id="CodeMirrorEditor"></textarea>
+     <div class="col-md-12 text-right">
+      <input type="text" class="form-control" id="newFilename" ng-model="auxItem.filename" placeholder="Inserisci il nome del file" required />
      </div>  
     </div>  
 
     <div class="row">
      <div class="col-md-12 text-right">
-      <button class="btn btn-success" ng-click="rename()">Rinomina</button>
-      <button class="btn btn-primary" data-dismiss="modal">Annulla</button>
+      <button class="btn btn-success h-spacer" ng-click="create()">
+       <i class="fa fa-floppy-o" aria-hidden="true"></i> Salva
+      </button>
+      <button class="btn btn-default" data-dismiss="modal">
+       <i class="fa fa-undo" aria-hidden="true"></i> Annulla
+      </button>
      </div>
     </div>
+
    </div>
   </div>
  </div>

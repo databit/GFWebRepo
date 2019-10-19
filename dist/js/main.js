@@ -19,7 +19,7 @@ gfWebRepoApp.config(function($httpProvider, $routeProvider, $locationProvider) {
 				controller: loginControll
 			});
 
-	//Enable cross domain calls
+	//Enable remove domain calls
 	$httpProvider.defaults.useXDomain = true;
 
     // Use x-www-form-urlencoded Content-Type
@@ -48,7 +48,7 @@ gfWebRepoApp.config(function($mdDateLocaleProvider) {
 });
 
 /** CONTROLLERS **/
-gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $location, FileUploader) { 
+gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $location, $sce, FileUploader) { 
     $rootScope.alertWindow = {type:'', message: '', visible: false};
     $rootScope.logged = false;
     $rootScope.ftpUploader = new FileUploader({ url: 'ws/explore.php', alias: 'upload'});
@@ -105,107 +105,6 @@ function loginControll($scope, $rootScope, $http, $route, $routeParams, $locatio
                 }
             });
     };
-/*
-    $scope.$on("$routeChangeStart", function(event, next, current) {
-        if(next.$$route)
-            switch(next.$$route.originalPath){
-                case "/classes/:noReload":
-                    event.preventDefault();
-                    $scope.classStub = {};
-                    $scope.mainPage = true;
-                    break;
-
-                case "/add-address":
-                    event.preventDefault();
-                    $scope.mainPage = false;
-                    $scope.partialTemplate = next.templateUrl;
-                    break;
-
-                case "/add-section/:address":
-                    event.preventDefault();
-                    $scope.mainPage = false;
-                    $scope.partialTemplate = next.templateUrl;
-
-                    $scope.classStub.address = next.params.address;
-                    break;
-            
-                case "/add-class/:address/:section/:rank":
-                    event.preventDefault();
-                    $scope.mainPage = false;
-                    $scope.partialTemplate = next.templateUrl;
-
-                    $scope.classStub.address = next.params.address;
-                    $scope.classStub.section = next.params.section;
-                    $scope.classStub.rank = next.params.rank;
-                    $scope.classStub.description = "";
-                    break;
-
-                case "/classes/edit/:id":
-                    event.preventDefault();
-                    $scope.mainPage = false;
-                    $scope.partialTemplate = next.templateUrl;
-
-                    var found = $filter('filter')($scope.classes, {id: next.params.id}, true);
-                    
-                    if (found.length) {
-                        $scope.classStub = angular.fromJson(found[0]);
-                        
-                    } else {
-                        $scope.classStub = {};
-                        $scope.mainPage = true;
-                    }
-                    break;
-            }
-    });
-
-    $scope.sortClassesBySection = function (classes, rank) {
-        var classesBySection = {};
-        console.log("Do sort");
-        for(key in classes)
-            classesBySection[classes[key].rank-1] = classes[key];
-
-        for(var i=0; i< rank; i++)
-            if(!classesBySection.hasOwnProperty(i))
-                classesBySection[i] = {"id": -1, "address": "", "rank": i+1, "section": "", "description": "", "students": 0};
-        
-        return classesBySection;
-    };
-
-    $scope.addAddress = function() {
-        $location.path('/add-section/'+ $scope.classStub.address);
-    };
-
-    $scope.addSection = function() {
-        $scope.classes.push({"id": -1, "address": $scope.classStub.address, "rank": 1, "section": $scope.classStub.section, "description": "", "students": 0});
-        $location.path('/classes/1')
-    };
-
-	$scope.editClass = function() {
-        $http.post(ABSOLUTE_PATH + 'components/DigitalSchool/ws/school.php', 
-                {   cmd: 'edit-class', 
-                    id: $scope.classStub.id, 
-                    description: $scope.classStub.description,
-                    secureTicket: ST_SCHOOL })
-                    
-             .then(function(response) {
-                if(response.status == 200)
-                    for (key in $scope.classes)
-                        if($scope.classes[key].id == $scope.classStub.id) {
-                            $scope.classes[key].description = ""+ $scope.classStub.description;
-                            $scope.classStub = {};
-                            $scope.mainPage = true;
-                            break;
-                        }
-            });
-	};
-
-    $scope.deleteClass = function() {
-        $http.post(ABSOLUTE_PATH + 'components/DigitalSchool/ws/school.php', {cmd: 'delete-class', 'id': $scope.classStub.id })
-            .then(function(response) {
-                if(response.status == 200)
-                    $route.reload();
-            });
-	};*/
 }
 
 function profileControll($scope, $http, $timeout) {
@@ -250,11 +149,11 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
     $scope.folders = [];
     $scope.auxItem = {};
     $scope.search = '';
-    $scope.newFilename = '';
+    $scope.renameFilename = '';
 
     $scope.loading = false;
     $scope.submitting = false;
-    $scope.menuOpen = false;
+    $scope.showEditor = false;
 
     $scope.editor = CodeMirror.fromTextArea(document.getElementById("CodeMirrorEditor"), {
             mode: "javascript",
@@ -277,18 +176,19 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
         'py':       { icon : 'file-code-o', editable: true },
         'asp':      { icon : 'file-code-o', editable: true },
         'sql':      { icon : 'file-code-o', editable: true },
-        'xml':      { icon : 'file-text-o', editable: true },
-        'c':        { icon : 'file-text-o', editable: true },
-        'cpp':      { icon : 'file-text-o', editable: true },
-        'cxx':      { icon : 'file-text-o', editable: true },
-        'java':     { icon : 'file-text-o', editable: true },
+        'xml':      { icon : 'file-code-o', editable: true },
+        'xsl':      { icon : 'file-code-o', editable: true },
+        'c':        { icon : 'file-code-o', editable: true },
+        'cpp':      { icon : 'file-code-o', editable: true },
+        'cxx':      { icon : 'file-code-o', editable: true },
+        'java':     { icon : 'file-code-o', editable: true },
         'txt':      { icon : 'file-text-o', editable: true },
         'ini':      { icon : 'file-text-o', editable: true },
         'doc':      { icon : 'file-word-o', editable: false },
         'docx':     { icon : 'file-word-o', editable: false },
         'odt':      { icon : 'file-word-o', editable: false },
-        'xsl':      { icon : 'file-excel-o', editable: false },
-        'xslx':     { icon : 'file-excel-o', editable: false },
+        'xls':      { icon : 'file-excel-o', editable: false },
+        'xlsx':     { icon : 'file-excel-o', editable: false },
         'ods':      { icon : 'file-excel-o', editable: false },
         'ppt':      { icon : 'file-powerpoint-o', editable: false },
         'pptx':     { icon : 'file-powerpoint-o', editable: false },
@@ -324,6 +224,10 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         $scope.files = response.data.files;
                         $scope.currentPaths.push(path);
                         
+                        // Calculate the extension
+                        for (key in $scope.files)
+                            $scope.files[key].ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
+                        
                     } else {
                         $scope.files = [];
                         $scope.folders = [];
@@ -354,6 +258,10 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         $scope.folders = response.data.folders;
                         $scope.files = response.data.files;
                         $scope.currentPaths = $scope.currentPaths.slice(0, index+1);
+
+                        // Calculate the extension
+                        for (key in $scope.files)
+                            $scope.files[key].ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
                         
                     } else {
                         $scope.files = [];
@@ -366,15 +274,36 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
         }
     }
 
-    $scope.download = function(){
-        var realPath = $scope.currentPaths.join('/');
+    $scope.saveFile = function(){
+        if(!$scope.loading){
+            $scope.loading = true;
 
-        window.location.href='./ws/explore.php?cmd=download&path='+ realPath +'&filename='+ $scope.auxItem.file.name;
+            var realPath = $scope.currentPaths.join('/');
+
+            // Get files and folders of root directory
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'write', 
+                    path: realPath,
+                    filename: $scope.auxItem.file.name,
+                    buffer: $scope.editor.getValue() })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        $scope.showEditor = false;
+                        $scope._showAlert('success', 'ok', "Il file <b>"+ $scope.auxItem.file.name + "</b> è stato modificato con successo");
+                        
+                    } else
+                        $scope._showAlert('danger', 'remove', "Si è verificato un errore durante il salvataggio del file");
+
+                    $scope.loading = false;
+                });
+        }
     };
 
     $scope.create = function(){
         if(!$scope.loading){
             $scope.loading = true;
+            $('#newWindow').modal('hide');
 
             var realPath = $scope.currentPaths.join('/');
 
@@ -392,11 +321,12 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         else
                             $scope.folders.push({ name: $scope.auxItem.filename});
 
-                        $('#newWindow').modal('hide');
+                        $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.filename + "</b> è "+ ($scope.auxItem.isFile ? 'stato creato' : 'stata creata') +" con successo!");
                         
-                    } else {
-                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante l'operazione di creazione del"+ (isFile ? ' file' : 'la cartella'));
-                    }
+                    } else
+                        $scope._showAlert('danger', 'remove', "Si è verificato un errore durante la creazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+
+                    $scope.search = '';
                     $scope.loading = false;
                 });
         }
@@ -405,6 +335,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
     $scope.rename = function(){
         if(!$scope.loading){
             $scope.loading = true;
+            $('#renameWindow').modal('hide');
 
             var realPath = $scope.currentPaths.join('/');
 
@@ -413,22 +344,23 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                  {  cmd: 'rename', 
                     path: realPath,
                     from: $scope.auxItem.file.name,
-                    to: $scope.newFilename })
+                    to: $scope.renameFilename })
                     
                  .then(function(response) {
                     if(response.status == 200 && response.data.success){
-                        $scope.auxItem.file.name = $scope.newFilename;
+                        $scope.auxItem.file.name = $scope.renameFilename;
 
                         if($scope.auxItem.isFile)
-                            $scope.files[$scope.auxItem.key].name = $scope.newFilename;
+                            $scope.files[$scope.auxItem.key].name = $scope.renameFilename;
                         else
-                            $scope.folders[$scope.auxItem.key].name = $scope.newFilename;
+                            $scope.folders[$scope.auxItem.key].name = $scope.renameFilename;
 
-                        $('#renameWindow').modal('hide');
-                        
-                    } else {
-                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante l'operazione di rinominazione del file");
-                    }
+                        $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.renameFilename + "</b> è "+ ($scope.auxItem.isFile ? 'stato rinominato' : 'stata rinominata') +" con successo!");
+
+                    } else
+                        $scope._showAlert('danger', 'remove', "Si è verificato un errore durante la rinominazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+
+                    $scope.search = '';
                     $scope.loading = false;
                 });
         }
@@ -437,6 +369,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
     $scope.delete = function (){
         if(!$scope.loading){
             $scope.loading = true;
+            $('#deleteWindow').modal('hide');
 
             var realPath = $scope.currentPaths.join('/');
             console.log( $scope.auxItem);
@@ -453,33 +386,55 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         else
                             $scope.folders.splice($scope.auxItem.key, 1);
                         
+                        $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato eliminato' : 'stata eliminata') +" con successo!");
                         $scope.auxItem = {};
-                        //$scope._showAlert('success', 'ok', (($scope.auxItem.isFile) ? 'Il file è stato eliminato' : 'La cartella é stata eliminata' )." con successo!");
-                        $('#deleteWindow').modal('hide');
                         
-                    } else {
-                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante la cancellazione del file dal server");
-                    }
+                    } else
+                        $scope._showAlert('danger', 'remove', "Si è verificato un errore durante la cancellazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+
                     $scope.search = '';
                     $scope.loading = false;
                 });
         }
     };
 
+    $scope.download = function(){
+        var realPath = $scope.currentPaths.join('/');
+
+        window.location.href='./ws/explore.php?cmd=download&path='+ realPath +'&filename='+ $scope.auxItem.file.name;
+    };
+
+    $scope.doDefaultActionFile = function(key){
+        $scope.auxItem = {
+            'key': key,
+            'file': $scope.files[key],
+            'isFile' : false,
+            'editable': $scope.files[key].ext != '' && $scope.files[key].ext in $scope.extensions && $scope.extensions[$scope.files[key].ext].editable 
+        };    
+
+        if($scope.auxItem.editable)
+            $scope.openEditor();
+        else
+            $scope.download();
+    };
+
     $scope.openMove = function(){ };
 
-    $scope.openCreate = function(isFile){ 
+    $scope.openCreate = function(isFile){
         $scope.auxItem = {
             'filename': isFile ? "nuovo file.txt" : "nuova cartella",
             'isFile' : isFile
         };
+        
+        $("#newFilename").select();
     };
 
     $scope.openContextMenu = function(event, key, isFile){
         event.preventDefault();
+
         $("#contextMenu")
-            .offset({ top: event.pageY, left: event.pageX})
-            .show();
+            .show()
+            .offset({ top: event.pageY, left: event.pageX});
         last = event.timeStamp;
 
         var isEditable = false;
@@ -493,10 +448,10 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
             'key': key,
             'file': isFile ? $scope.files[key] : $scope.folders[key],
             'isFile' : isFile,
-            editable: isEditable 
+            'editable': isEditable 
         };
         
-        $scope.newFilename = isFile ? $scope.files[key].name : $scope.folders[key].name;
+        $scope.renameFilename = isFile ? $scope.files[key].name : $scope.folders[key].name;
 
         $(document).click(function(event) {
             var target = $(event.target);
@@ -513,6 +468,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
     $scope.openEditor = function(){ 
         if(!$scope.loading){
             $scope.loading = true;
+            $scope.showEditor = true;
 
             var realPath = $scope.currentPaths.join('/');
 
@@ -553,6 +509,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                                 break;
                                 
                             case 'xml':
+                            case 'xsl':
                                 $scope.editor.setOption('mode', 'xml');
                                 break;
 
@@ -569,6 +526,8 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         }
                     
                         $scope.editor.setValue(response.data.buffer);
+
+                        $(".CodeMirror").height($(window).height() - $(".navbar").outerHeight(true) - $("#editorTitle").outerHeight(true) - $("#editorCommand").outerHeight(true) - 15);
  
                     } else {
                         $scope._showAlert('warning', 'alert', "E' accorso un errore la lettura del file");
@@ -619,9 +578,8 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
 gfWebRepoApp
 .filter('getIcon', function() {
     return function(file, $scope) {
-        var ext = file.name.slice((Math.max(0, file.name.lastIndexOf(".")) || Infinity) + 1);
-        if(ext != '' && ext in $scope.extensions)
-            return $scope.extensions[ext].icon;
+        if(file.ext != '' && file.ext in $scope.extensions)
+            return $scope.extensions[file.ext].icon;
 
         return 'file-o';
     }
@@ -630,6 +588,11 @@ gfWebRepoApp
    return function(input, trueValue, falseValue) {
         return input ? trueValue : falseValue;
    };
+})
+.filter('trustAsHtml',function($sce){
+    return function(input){
+        return $sce.trustAsHtml(input);
+    }
 })
 .directive('pwCheck', [function () {
     return {
