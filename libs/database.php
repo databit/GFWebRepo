@@ -24,16 +24,10 @@ class Database {
 	//Singleton
 	public static function instance(){
 		if(Database::$instance == null ){
-			if(function_exists('apc_store')){
-				if (Database::$instance = apc_fetch('IceCode_Database_Instance') == null){
-					Database::$instance = new Database();
-					apc_store('IceCode_Database_Instance', Database::$instance);
-				}
-						
-			}else{
-				if (isset($GLOBAL['IceCode_Database'])) Database::$instance = $GLOBAL['IceCode_Database'];
-				else $GLOBAL['IceCode_Database'] = Database::$instance = new Database();
-			}
+            if (isset($GLOBAL['IceCode_Database']))
+                Database::$instance = $GLOBAL['IceCode_Database'];
+            else 
+                $GLOBAL['IceCode_Database'] = Database::$instance = new Database();
 		}
 
 		return Database::$instance;
