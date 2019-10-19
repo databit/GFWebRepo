@@ -61,6 +61,11 @@ if(isset($_POST['cmd'])){
 
             break;
 
+        case 'logout':
+            unset($_SESSION['gfWebRepo']);
+            die(json_encode(array('success' => true)));
+            break;
+
         case 'get-profile':
             $sQuery="   SELECT `User`
                         FROM `ftpd`

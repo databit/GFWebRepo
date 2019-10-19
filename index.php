@@ -18,6 +18,9 @@
   <!-- Custom CSS -->
   <link href="./dist/css/sb-admin-2.min.css" rel="stylesheet">
 
+  <!-- Code Mirror -->
+  <link rel="stylesheet" href="./vendor/codemirror/lib/codemirror.css">
+
   <!-- Custom Fonts -->
   <link href="./vendor/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
 
@@ -51,12 +54,17 @@
     <!-- /.navbar-header -->
 
     <ul class="nav navbar-top-links navbar-right">
-     <li>
+     <li ng-show="!logged">
+      <a href="#!/login">
+       <i class="fa fa-sign-in fa-fw"></i>
+      </a>
+     </li>
+     <li ng-show="logged">
       <a href="#!/explore">
        <i class="fa fa-server fa-fw"></i>
       </a>
      </li>
-     <li class="dropdown">
+     <li class="dropdown" ng-show="logged">
       <a class="dropdown-toggle" data-toggle="dropdown" id="uploadingFileMenu" href="">
        <i class="fa fa-upload fa-fw"></i> <i class="fa fa-caret-down"></i>
       </a>
@@ -78,8 +86,7 @@
         </li>
        </ul>
      </li>
-     <!-- /.dropdown -->
-     <li class="dropdown">
+     <li class="dropdown" ng-show="logged">
       <a class="dropdown-toggle" data-toggle="dropdown" href="">
        <i class="fa fa-user fa-fw"></i> <i class="fa fa-caret-down"></i>
       </a>
@@ -87,7 +94,7 @@
        <li><a href="#!/profile"><i class="fa fa-user fa-fw"></i> Profilo utente</a>
        </li>
        <li class="divider"></li>
-       <li><a href="#!/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a>
+       <li><a href="" ng-click="doLogout()"><i class="fa fa-sign-out fa-fw"></i> Logout</a>
        </li>
       </ul>
       <!-- /.dropdown-user -->
@@ -129,6 +136,21 @@
 
   <!-- Angular Upload -->
   <script src="./dist/js/angular-file-upload.min.js"></script>
+
+  <!-- Code Mirror -->
+  <script src="./vendor/codemirror/lib/codemirror.js"></script>
+  <script src="./vendor/codemirror/addon/selection/active-line.js"></script>
+  <script src="./vendor/codemirror/addon/edit/matchbrackets.js"></script>
+  <script src="./vendor/codemirror/mode/javascript/javascript.js"></script>
+  <script src="./vendor/codemirror/mode/php/php.js"></script>
+  <script src="./vendor/codemirror/mode/htmlmixed/htmlmixed.js"></script>
+  <script src="./vendor/codemirror/mode/css/css.js"></script>
+  <script src="./vendor/codemirror/mode/python/python.js"></script>
+  <script src="./vendor/codemirror/mode/sql/sql.js"></script>
+  <script src="./vendor/codemirror/mode/xml/xml.js"></script>
+  <script src="./vendor/codemirror/mode/clike/clike.js"></script>
+  <script src="./vendor/codemirror/mode/javascript/javascript.js"></script>
+  <script src="./vendor/codemirror/mode/javascript/javascript.js"></script>
 
   <!-- Custom Theme JavaScript -->
   <script src="./dist/js/sb-admin-2.min.js"></script>

@@ -35,6 +35,15 @@
     <i class="fa fa-{{file | getIcon:this}} fa-5x"></i><br />
     {{file.name}}
    </a>
+
+   <a class="col-lg2 col-md-2 v-spacer text-center text-success" ng-click="openCreate(false)" data-toggle="modal" data-target="#newWindow">
+    <i class="fa fa-folder fa-5x"></i><br /> Nuova cartella
+   </a>
+
+   <a class="col-lg2 col-md-2 v-spacer text-center text-success" ng-click="openCreate(true)" data-toggle="modal" data-target="#newWindow">
+    <i class="fa fa-file fa-5x"></i><br /> Nuovo file
+   </a>
+
   </div>
 </div>
  
@@ -66,17 +75,17 @@
 
 <ul id="contextMenu" class="dropdown-menu" role="menu">
  <li>
-  <a href="" ng-show="auxItem.editable" ng-click="openEdit()">
+  <a href="" ng-show="auxItem.editable" ng-click="openEditor()"  data-toggle="modal" data-target="#editorWindow">
     <i class="fa fa-pencil fa-fw"></i> Modifica
   </a>
  </li>
  <li>
-  <a href="" ng-click="openEditFile()">
+  <a href="" ng-show="auxItem.isFile" ng-click="download()">
     <i class="fa fa-download fa-fw"></i> Scarica
   </a>
  </li>
  <li>
-  <a href="" ng-click="openRename()">
+  <a href="" data-toggle="modal" data-target="#renameWindow">
    <i class="fa fa-font fa-fw"></i> Rinomina
   </a>
  </li>
@@ -86,28 +95,104 @@
   </a>
  </li>
  <li>
-  <a href="" ng-click="openDelete()" data-toggle="modal" data-target="#deleteWindow">
+  <a href="" data-toggle="modal" data-target="#deleteWindow">
    <i class="fa fa-trash fa-fw"></i> Elimina
   </a>
  </li>
 </ul>
 
- <div id="deleteWindow" class="modal fade">
-  <div class="modal-dialog">
-   <div class="modal-content">
-    <div class="modal-header">
-     <button type="button" class="close" data-dismiss="modal">&times;</button>
-     <h4 class="modal-title">Conferma cancellazione file</h4>
-    </div>
-    <div class="modal-body">
-     <h3>Sei sicuro di voler eliminare il file <b>{{auxItem.file.name}}</b>?</h3>
-     <div class="row">
-      <div class="col-md-12 text-right">
-       <button class="btn btn-danger" ng-click="delete()">Si</button>
-       <button class="btn btn-primary" data-dismiss="modal">No</button>
-      </div>
+<div id="deleteWindow" class="modal fade">
+ <div class="modal-dialog">
+  <div class="modal-content">
+   <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Conferma cancellazione file</h4>
+   </div>
+   <div class="modal-body">
+    <h3>Sei sicuro di voler eliminare il file <b>{{auxItem.file.name}}</b>?</h3>
+    <div class="row">
+     <div class="col-md-12 text-right">
+      <button class="btn btn-danger" ng-click="delete()">Si</button>
+      <button class="btn btn-primary" data-dismiss="modal">No</button>
      </div>
     </div>
    </div>
   </div>
  </div>
+</div>
+
+<div id="renameWindow" class="modal fade">
+ <div class="modal-dialog modal-sm">
+  <div class="modal-content">
+   <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Rinomina {{ auxItem.isFile | iif : "file" : "cartella"}}</h4>
+   </div>
+   <div class="modal-body">
+    <div class="row v-spacer">
+     <div class="col-md-12 text-right">
+      <input type="text" class="form-control" ng-model="newFilename" placeholder="Inserisci il nome del file" required />
+     </div>  
+    </div>  
+
+    <div class="row">
+     <div class="col-md-12 text-right">
+      <button class="btn btn-success" ng-click="rename()">Rinomina</button>
+      <button class="btn btn-default" data-dismiss="modal">Annulla</button>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
+<div id="newWindow" class="modal fade">
+ <div class="modal-dialog modal-sm">
+  <div class="modal-content">
+   <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Nuov{{ auxItem.isFile | iif : "o file" : "a cartella"}}</h4>
+   </div>
+   <div class="modal-body">
+    <div class="row v-spacer">
+     <div class="col-md-12 text-right">
+      <input type="text" class="form-control" ng-model="auxItem.filename" placeholder="Inserisci il nome del file" required />
+     </div>  
+    </div>  
+
+    <div class="row">
+     <div class="col-md-12 text-right">
+      <button class="btn btn-success" ng-click="create()">Salva</button>
+      <button class="btn btn-default" data-dismiss="modal">Annulla</button>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+ 
+ 
+<div id="editorWindow" class="modal fade">
+ <div class="modal-dialog modal-lg">
+  <div class="modal-content">
+   <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Modifica {{auxItem.file.name}}</h4>
+   </div>
+   <div class="modal-body">
+    <div class="row v-spacer">
+     <div class="col-md-12">
+      <textarea id="CodeMirrorEditor"></textarea>
+     </div>  
+    </div>  
+
+    <div class="row">
+     <div class="col-md-12 text-right">
+      <button class="btn btn-success" ng-click="rename()">Rinomina</button>
+      <button class="btn btn-primary" data-dismiss="modal">Annulla</button>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>

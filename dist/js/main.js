@@ -48,11 +48,21 @@ gfWebRepoApp.config(function($mdDateLocaleProvider) {
 });
 
 /** CONTROLLERS **/
-gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $timeout, FileUploader) { 
+gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $location, FileUploader) { 
     $rootScope.alertWindow = {type:'', message: '', visible: false};
     $rootScope.logged = false;
     $rootScope.ftpUploader = new FileUploader({ url: 'ws/explore.php', alias: 'upload'});
 
+    $scope.doLogout = function() {
+        $http.post('./ws/users.php', { cmd: 'logout' })
+             .then(function(response) {
+                if(response.status == 200 && response.data.success){
+                    $rootScope.logged = false;
+                    $location.path('/login');
+                
+                }
+            });
+    };
     
     //Tools
     $rootScope._showAlert = function(typeMessage, icon, messageText) {
@@ -68,6 +78,7 @@ gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $time
 function loginControll($scope, $rootScope, $http, $route, $routeParams, $location, $filter) {
     $scope.username = '';
     $scope.password = '';
+    $rootScope.logged = false;
 
     $http.post('./ws/users.php', { cmd: 'is-logged' })
          .then(function(response) {
@@ -233,15 +244,28 @@ function profileControll($scope, $http, $timeout) {
     };
 };
 
-function exploreControll($scope, $http, $timeout, FileUploader) { 
+function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUploader) { 
     $scope.currentPaths = [];
     $scope.files = [];
     $scope.folders = [];
     $scope.auxItem = {};
+    $scope.search = '';
+    $scope.newFilename = '';
 
     $scope.loading = false;
     $scope.submitting = false;
-    $scope.search = '';
+    $scope.menuOpen = false;
+
+    $scope.editor = CodeMirror.fromTextArea(document.getElementById("CodeMirrorEditor"), {
+            mode: "javascript",
+            lineNumbers: true,
+            lineWrapping: true,
+            styleActiveLine: true,
+            matchBrackets: true,
+            extraKeys: {"Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }},
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
+        });
     
     $scope.extensions = {
         'php':      { icon : 'file-code-o', editable: true },
@@ -252,6 +276,12 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
         'js':       { icon : 'file-code-o', editable: true },
         'py':       { icon : 'file-code-o', editable: true },
         'asp':      { icon : 'file-code-o', editable: true },
+        'sql':      { icon : 'file-code-o', editable: true },
+        'xml':      { icon : 'file-text-o', editable: true },
+        'c':        { icon : 'file-text-o', editable: true },
+        'cpp':      { icon : 'file-text-o', editable: true },
+        'cxx':      { icon : 'file-text-o', editable: true },
+        'java':     { icon : 'file-text-o', editable: true },
         'txt':      { icon : 'file-text-o', editable: true },
         'ini':      { icon : 'file-text-o', editable: true },
         'doc':      { icon : 'file-word-o', editable: false },
@@ -336,49 +366,74 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
         }
     }
 
-    $scope.openContextMenu = function(event, key, isFile){
-        event.preventDefault();
-        $("#contextMenu")
-            .offset({ top: event.pageY, left: event.pageX})
-            .show();
-        last = event.timeStamp;
+    $scope.download = function(){
+        var realPath = $scope.currentPaths.join('/');
 
-        var isEditable = false;
-        if(isFile){
-            var ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
-            if(ext != '' && ext in $scope.extensions)
-                isEditable = $scope.extensions[ext].editable;
+        window.location.href='./ws/explore.php?cmd=download&path='+ realPath +'&filename='+ $scope.auxItem.file.name;
+    };
+
+    $scope.create = function(){
+        if(!$scope.loading){
+            $scope.loading = true;
+
+            var realPath = $scope.currentPaths.join('/');
+
+            // Get files and folders of root directory
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'create', 
+                    path: realPath,
+                    filename: $scope.auxItem.filename,
+                    isFile: $scope.auxItem.isFile })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        if($scope.auxItem.isFile)
+                            $scope.files.push({ name: $scope.auxItem.filename});
+                        else
+                            $scope.folders.push({ name: $scope.auxItem.filename});
+
+                        $('#newWindow').modal('hide');
+                        
+                    } else {
+                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante l'operazione di creazione del"+ (isFile ? ' file' : 'la cartella'));
+                    }
+                    $scope.loading = false;
+                });
         }
-            
-        $scope.auxItem = {
-            'key': key,
-            'file': isFile ? $scope.files[key] : $scope.folders[key],
-            'isFile' : isFile,
-            editable: isEditable 
-        };
+    };
 
-        $(document).click(function(event) {
-            var target = $(event.target);
-                if (!target.is(".popover") && !target.parents().is(".popover")) {
-                    if (last === event.timeStamp)
-                        return;
-                    $("#contextMenu").hide();
-                    //$scope.auxItem = {};
-                return false;
-            }
-        });
-    }
-    
-    $scope.openEdit = function(){ }
+    $scope.rename = function(){
+        if(!$scope.loading){
+            $scope.loading = true;
 
-    $scope.download = function(){ }
+            var realPath = $scope.currentPaths.join('/');
 
-    $scope.openRename = function(){ }
+            // Get files and folders of root directory
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'rename', 
+                    path: realPath,
+                    from: $scope.auxItem.file.name,
+                    to: $scope.newFilename })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        $scope.auxItem.file.name = $scope.newFilename;
 
-    $scope.openMove = function(){ }
+                        if($scope.auxItem.isFile)
+                            $scope.files[$scope.auxItem.key].name = $scope.newFilename;
+                        else
+                            $scope.folders[$scope.auxItem.key].name = $scope.newFilename;
 
-    $scope.openDelete = function(){ }
-    
+                        $('#renameWindow').modal('hide');
+                        
+                    } else {
+                        $scope._showAlert('warning', 'alert', "E' accorso un errore durante l'operazione di rinominazione del file");
+                    }
+                    $scope.loading = false;
+                });
+        }
+    };
+
     $scope.delete = function (){
         if(!$scope.loading){
             $scope.loading = true;
@@ -411,6 +466,117 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
         }
     };
 
+    $scope.openMove = function(){ };
+
+    $scope.openCreate = function(isFile){ 
+        $scope.auxItem = {
+            'filename': isFile ? "nuovo file.txt" : "nuova cartella",
+            'isFile' : isFile
+        };
+    };
+
+    $scope.openContextMenu = function(event, key, isFile){
+        event.preventDefault();
+        $("#contextMenu")
+            .offset({ top: event.pageY, left: event.pageX})
+            .show();
+        last = event.timeStamp;
+
+        var isEditable = false;
+        if(isFile){
+            var ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
+            if(ext != '' && ext in $scope.extensions)
+                isEditable = $scope.extensions[ext].editable;
+        }
+            
+        $scope.auxItem = {
+            'key': key,
+            'file': isFile ? $scope.files[key] : $scope.folders[key],
+            'isFile' : isFile,
+            editable: isEditable 
+        };
+        
+        $scope.newFilename = isFile ? $scope.files[key].name : $scope.folders[key].name;
+
+        $(document).click(function(event) {
+            var target = $(event.target);
+                if (!target.is(".popover") && !target.parents().is(".popover")) {
+                    if (last === event.timeStamp)
+                        return;
+                    $("#contextMenu").hide();
+
+                return false;
+            }
+        });
+    }
+    
+    $scope.openEditor = function(){ 
+        if(!$scope.loading){
+            $scope.loading = true;
+
+            var realPath = $scope.currentPaths.join('/');
+
+            $http.post('./ws/explore.php', 
+                 {  cmd: 'read', 
+                    path: realPath,
+                    filename: $scope.auxItem.file.name })
+                    
+                 .then(function(response) {
+                    if(response.status == 200 && response.data.success){
+                        var ext = $scope.auxItem.file.name.slice((($scope.auxItem.file.name[0] != '.') ? Math.max(0, $scope.auxItem.file.name.lastIndexOf(".")) || Infinity : 0) + 1);                    
+                    
+                        switch(ext){
+                            case 'js':
+                                $scope.editor.setOption('mode', 'javascript');
+                                break;
+
+                            case 'php':
+                            case 'asp':
+                                $scope.editor.setOption('mode', 'php');
+                                break;
+                                
+                            case 'html':
+                            case 'htm':
+                                $scope.editor.setOption('mode', 'htmlmixed');
+                                break;
+
+                            case 'css':
+                                $scope.editor.setOption('mode', 'css');
+                                break;
+
+                            case 'py':
+                                $scope.editor.setOption('mode', 'python');
+                                break;
+
+                            case 'sql':
+                                $scope.editor.setOption('mode', 'sql');
+                                break;
+                                
+                            case 'xml':
+                                $scope.editor.setOption('mode', 'xml');
+                                break;
+
+                            case 'c':
+                            case 'cpp':
+                            case 'cxx':
+                            case 'java':
+                                $scope.editor.setOption('mode', 'clike');
+                                break;
+                            
+                            default:
+                                $scope.editor.setOption('mode', '');
+                            
+                        }
+                    
+                        $scope.editor.setValue(response.data.buffer);
+ 
+                    } else {
+                        $scope._showAlert('warning', 'alert', "E' accorso un errore la lettura del file");
+                    }
+                    $scope.loading = false;
+                });
+        }
+    };
 
     // Upload File Callbacks
     $scope.ftpUploader.onBeforeUploadItem = function(item) {
@@ -436,7 +602,18 @@ function exploreControll($scope, $http, $timeout, FileUploader) {
             */
     };
     
-    $scope.list('');
+    $http.post('./ws/users.php', { cmd: 'is-logged' })
+         .then(function(response) {
+            if(response.status == 200 && response.data.success){
+                $rootScope.logged = true;
+                $scope.list('');
+
+            } else {
+                $rootScope.logged = false;
+                $location.path('/login');
+            }
+        });
+
 }
 
 gfWebRepoApp
@@ -448,6 +625,11 @@ gfWebRepoApp
 
         return 'file-o';
     }
+})
+.filter('iif', function () {
+   return function(input, trueValue, falseValue) {
+        return input ? trueValue : falseValue;
+   };
 })
 .directive('pwCheck', [function () {
     return {
