@@ -31,22 +31,6 @@ gfWebRepoApp.config(function($httpProvider, $routeProvider, $locationProvider) {
 	//$locationProvider.html5Mode(true);
 })
 
-/*
-gfWebRepoApp.config(function($mdDateLocaleProvider) {
-    //$mdDateLocaleProvider.formatDate = function(date) {
-    $mdDateLocaleProvider.months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-    $mdDateLocaleProvider.shortMonths = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-    $mdDateLocaleProvider.days = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
-    $mdDateLocaleProvider.shortDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-
-    // Can change week display to start on Monday.
-    $mdDateLocaleProvider.firstDayOfWeek = 1;
-
-    $mdDateLocaleProvider.formatDate = function(date) {
-        return moment(date).format('DD-MM-YYYY');
-    };
-});
-
 /** CONTROLLERS **/
 gfWebRepoApp.controller('navControll', function($scope, $rootScope, $http, $location, $sce, FileUploader) { 
     $rootScope.alertWindow = {type:'', message: '', visible: false};
@@ -150,9 +134,14 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
     $scope.auxItem = {};
     $scope.search = '';
     $scope.renameFilename = '';
+    $scope.moving = {
+        paths: [],
+        folders: []
+    };
 
     $scope.loading = false;
-    $scope.submitting = false;
+    $scope.loadingMove = false;
+    $scope.loading = false;
     $scope.showEditor = false;
 
     $scope.editor = CodeMirror.fromTextArea(document.getElementById("CodeMirrorEditor"), {
@@ -207,11 +196,17 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
         'bz2':      { icon : 'file-archive-o', editable: false }
     }
 
-    $scope.list = function (path){
-        if(!$scope.loading){
-            $scope.loading = true;
+    $scope.list = function (path, isMoveFile){
+        if(typeof isMoveFile == "undefined")
+            isMoveFile = false;
 
-            var realPath = $scope.currentPaths.join('/');
+        if((!$scope.loading && !isMoveFile) || (!$scope.loading && isMoveFile)){
+            if(isMoveFile)
+                $scope.loadingMove = true
+            else
+                $scope.loading = true;
+
+            var realPath = isMoveFile ? $scope.moving.paths.join('/') : $scope.currentPaths.join('/');
 
             // Get files and folders of root directory
             $http.post('./ws/explore.php', 
@@ -220,56 +215,91 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                     
                  .then(function(response) {
                     if(response.status == 200 && response.data.success){
-                        $scope.folders = response.data.folders;
-                        $scope.files = response.data.files;
-                        $scope.currentPaths.push(path);
-                        
-                        // Calculate the extension
-                        for (key in $scope.files)
-                            $scope.files[key].ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
-                        
+                        if(isMoveFile){
+                            $scope.moving.folders = response.data.folders;
+                            if(path != '')
+                                $scope.moving.paths.push(path);
+
+                        } else {
+                            $scope.folders = response.data.folders;
+                            $scope.files = response.data.files;
+                            if(path != '')
+                                $scope.currentPaths.push(path);
+                            
+                            // Calculate the extension
+                            for (key in $scope.files)
+                                $scope.files[key].ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
+                        }
                     } else {
                         $scope.files = [];
-                        $scope.folders = [];
+                        if(isMoveFile)
+                            $scope.moving.folders = [];
+                        else 
+                            $scope.folders = [];
+                            
                         $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
                         $location.path('/login');
                     }
                     $scope.search = '';
-                    $scope.loading = false;
+                    if(isMoveFile)
+                        $scope.loadingMove = false
+                    else
+                        $scope.loading = false;
+
                 });
         }
     };
 
-    $scope.listDirFromIndex = function (index){
-        var realPath = ''
+    $scope.listDirFromIndex = function (index, isMoveFile){
+        if(typeof isMoveFile == "undefined")
+            isMoveFile = false;
 
-        if(!$scope.loading){
-            $scope.loading = true;
+        if((!$scope.loading && !isMoveFile) || (!$scope.loading && isMoveFile)){
+            if(isMoveFile)
+                $scope.loadingMove = true
+            else
+                $scope.loading = true;
+
+            var realPath = '';
             for(i=0; i<=index; i++)
-                realPath = realPath + $scope.currentPaths[i] + '/';
+                realPath = realPath + (isMoveFile ? $scope.moving.paths[i] : $scope.currentPaths[i]) + '/';
                 
             // Get files and folders of root directory
             $http.post('./ws/explore.php', 
-                 {  cmd: 'list', 
+                 {  cmd: isMoveFile ? 'list-folders' : 'list', 
                     path: realPath })
                     
                  .then(function(response) {
                     if(response.status == 200 && response.data.success){
-                        $scope.folders = response.data.folders;
-                        $scope.files = response.data.files;
-                        $scope.currentPaths = $scope.currentPaths.slice(0, index+1);
+                        if(isMoveFile){
+                            $scope.moving.folders = response.data.folders;
+                            $scope.moving.paths = $scope.moving.paths.slice(0, index+1);
 
-                        // Calculate the extension
-                        for (key in $scope.files)
-                            $scope.files[key].ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
-                        
+                        } else {
+                            $scope.folders = response.data.folders;
+                            $scope.files = response.data.files;
+                            $scope.currentPaths = $scope.currentPaths.slice(0, index+1);
+
+                            // Calculate the extension
+                            for (key in $scope.files)
+                                $scope.files[key].ext = $scope.files[key].name.slice((($scope.files[key].name[0] != '.') ? Math.max(0, $scope.files[key].name.lastIndexOf(".")) || Infinity : 0) + 1);
+                        }
                     } else {
-                        $scope.files = [];
-                        $scope.folders = [];
+                        if(isMoveFile)
+                            $scope.moving.folders = [];
+
+                        else {
+                            $scope.files = [];
+                            $scope.folders = [];
+                        }
                         $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
                     }
                     $scope.search = '';
-                    $scope.loading = false;
+                    if(isMoveFile)
+                        $scope.loadingMove = false
+                    else
+                        $scope.loading = false;
+
                 });
         }
     }
@@ -366,6 +396,48 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
         }
     };
 
+    $scope.move = function(){
+        if(!$scope.loading){
+            $scope.loading = true;
+            $('#moveWindow').modal('hide');
+
+            var realPathFrom = $scope.currentPaths.join('/');
+            var realPathTo = $scope.moving.paths.join('/');
+
+            // Check if the folders are different
+            if(realPathFrom != realPathTo)
+                $http.post('./ws/explore.php', 
+                     {  cmd: 'move', 
+                        pathFrom: realPathFrom,
+                        pathTo: realPathTo,
+                        filename: $scope.auxItem.file.name })
+                        
+                     .then(function(response) {
+                        if(response.status == 200){
+                                if(response.data.success){
+                                    $scope.files.splice($scope.auxItem.key, 1);
+
+                                    $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato spostato' : 'stata spostata') +" con successo!");
+                                    $scope.auxItem = {};
+
+                                } else  if (response.data.error == 'delete-failed'){
+                                    $scope.files.splice($scope.auxItem.key, 1);
+
+                                    $scope._showAlert('warning', 'alert', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato spostato' : 'stata spostata') +" con successo, ma è rimast"+ ($scope.auxItem.isFile ? 'o' : 'a') +" una copia nella vecchia posizione");
+                                    $scope.auxItem = {};
+                                
+                                } else 
+                                    $scope._showAlert('danger', 'remove', "Si è verificato un errore durante lo spostamento del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+
+                        } else
+                            $scope._showAlert('danger', 'remove', "Si è verificato un errore durante lo spostamento del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+
+                        $scope.search = '';
+                        $scope.loading = false;
+                    });
+        }
+    };
+
     $scope.delete = function (){
         if(!$scope.loading){
             $scope.loading = true;
@@ -418,7 +490,10 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
             $scope.download();
     };
 
-    $scope.openMove = function(){ };
+    $scope.openMove = function(){ 
+        $scope.moving.paths = $scope.currentPaths.slice(0);
+        $scope.list('', true);
+    };
 
     $scope.openCreate = function(isFile){
         $scope.auxItem = {
@@ -565,7 +640,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
          .then(function(response) {
             if(response.status == 200 && response.data.success){
                 $rootScope.logged = true;
-                $scope.list('');
+                $scope.list('/');
 
             } else {
                 $rootScope.logged = false;

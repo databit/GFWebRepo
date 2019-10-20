@@ -130,7 +130,7 @@
   </a>
  </li>
  <li>
-  <a data-toggle="modal" data-target="#moveWindow">
+  <a data-toggle="modal" data-target="#moveWindow"  ng-show="auxItem.isFile" ng-click="openMove()">
    <i class="fa fa-arrows fa-fw"></i> Sposta
   </a>
  </li>
@@ -227,24 +227,35 @@
 <div id="moveWindow" class="modal fade">
  <div class="modal-dialog modal-lg">
   <div class="modal-content">
+   <!-- Loading layer for move window -->
+   <div class="modal modal-open fade in show"  ng-show="loadingMove">
+    <div class="loader"></div>
+   </div>
+   <div class="modal-backdrop fade in" ng-show="loadingMove"></div>
+
    <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal">&times;</button>
     <h4 class="modal-title">Sposta {{auxItem.file.name}}</h4>
    </div>
    <div class="modal-body">
-   
-   
-   
     <div class="row v-spacer">
-     <div class="col-md-12 text-right">
-      <input type="text" class="form-control" id="newFilename" ng-model="auxItem.filename" placeholder="Inserisci il nome del file" required />
-     </div>  
+     <p>
+      <span ng-repeat="(key, movingPath) in moving.paths">
+       <a ng-click="listDirFromIndex(0, true)" ng-show="key == 0">
+        <i class="fa fa-home fa-2x"></i></a>
+       <a ng-click="listDirFromIndex(key, true)" ng-show="key != 0">{{movingPath}} </a> /
+      </span>
+     </p>
+     
+     <a class="col-lg-1 col-md-2 col-sm-3 col-xs-4 v-spacer text-center filename" ng-repeat="(key, folder) in moving.folders" ng-dblclick="list(folder.name, true)">
+      <i class="fa fa-folder fa-3x"></i><br />{{folder.name}}
+     </a>
     </div>  
 
     <div class="row">
      <div class="col-md-12 text-right">
-      <button class="btn btn-success h-spacer" ng-click="create()">
-       <i class="fa fa-floppy-o" aria-hidden="true"></i> Salva
+      <button class="btn btn-success h-spacer" ng-click="move()">
+       <i class="fa fa-arrows" aria-hidden="true"></i> Sposta
       </button>
       <button class="btn btn-default" data-dismiss="modal">
        <i class="fa fa-undo" aria-hidden="true"></i> Annulla

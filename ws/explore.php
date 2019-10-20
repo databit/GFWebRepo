@@ -33,6 +33,23 @@ if(isset($_POST['cmd'])){
 
             break;
 
+        case 'list-folders':
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+
+            if($_mHandler->isConnected()){
+                $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
+
+                exit(json_encode(array(
+                        'success' => true,
+                        'folders' => $_mHandler->listDetails($sPath, 'folders'))
+                    ));
+                $_mHandler->quit();
+
+            } else 
+                exit(json_encode(array('success' => false)));
+
+            break;
+
         case 'upload':
             $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
 
@@ -98,6 +115,43 @@ if(isset($_POST['cmd'])){
             
             } else 
                 exit(json_encode(array('success' => false)));
+            
+            break;
+
+        case 'move':
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+
+            if($_mHandler->isConnected()){
+                $sPathFrom = $_POST['pathFrom'];
+                $sPathTo = $_POST['pathTo'];
+
+                // Create the temporaly file for download file from ftp
+                $sTempFile = tempnam(sys_get_temp_dir(), $_SESSION['gfWebRepo']['user']['username']);
+
+                // Copy the file localy
+                $_mHandler->chdir($sPathFrom);
+                if($_mHandler->get($sTempFile, $_POST['filename'])){
+                    // Send the local file to new path 
+                    $_mHandler->chdir($sPathTo);
+                    if($_mHandler->store($sTempFile, $_POST['filename'])){
+                        // Delete the old file
+                        $_mHandler->chdir($sPathFrom);
+                        if($_mHandler->delete($_POST['filename']))
+                            $aResult = array('success' => true );
+                        else 
+                            $aResult = array('success' => false, 'error' => 'delete-failed' );
+
+                    } else 
+                        $aResult = array('success' => false, 'error' => 'store-failed' );
+                        
+                } else 
+                    $aResult = array('success' => false, 'error' => 'get-failed' );
+
+                $_mHandler->quit();
+                exit(json_encode($aResult));
+            
+            } else 
+                exit(json_encode(array('success' => false, 'error' => 'login-failed')));
             
             break;
 
