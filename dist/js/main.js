@@ -69,7 +69,6 @@ function loginControll($scope, $rootScope, $http, $route, $routeParams, $locatio
             if(response.status == 200 && response.data.success){
                 $rootScope.logged = true;
                 $location.path('/explore');
-            
             }
         });
     
