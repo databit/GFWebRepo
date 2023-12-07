@@ -13,289 +13,383 @@
  */
  
 class Database {
-	protected static $instance;
-	private $_oMySQLIMan;
-	private $_currentDatabase;
-	private $_mResultSet;
-	private $_mHystoricalResultSet;
-	private $_nError;
-	private $_bResultTransaction;
+    protected static $instance;
+    private $_oMySQLIMan;
+    private $_currentDatabase;
+    private $_mResultSet;
+    private $_mHystoricalResultSet;
+    private $_nError;
+    private $_bResultTransaction;
 
-	//Singleton
-	public static function instance(){
-		if(Database::$instance == null ){
-            if (isset($GLOBAL['IceCode_Database']))
-                Database::$instance = $GLOBAL['IceCode_Database'];
-            else 
-                $GLOBAL['IceCode_Database'] = Database::$instance = new Database();
-		}
+    //Singleton
+    public static function instance(){
+        if(Database::$instance == null ){
+            if(function_exists('apc_store')){
+                if (Database::$instance = apc_fetch('IceCode_Database_Instance') == null){
+                    Database::$instance = new Database();
+                    apc_store('IceCode_Database_Instance', Database::$instance);
+                }
+                        
+            }else{
+                if (isset($GLOBAL['IceCode_Database'])) Database::$instance = $GLOBAL['IceCode_Database'];
+                else $GLOBAL['IceCode_Database'] = Database::$instance = new Database();
+            }
+        }
 
-		return Database::$instance;
-	}
+        return Database::$instance;
+    }
 
-	private function __construct() {
-		$this->_oMySQLIMan = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_DATABASE);
-		$this->_oMySQLIMan->set_charset("utf8");
-		$this->_currentDatabase = DB_DATABASE;
-		$this->_mHystoricalResultSet=array();
-		$this->_nError = mysqli_connect_errno();
-	}
+    private function __construct() {
+        $this->_oMySQLIMan = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_DATABASE);
+        $this->_oMySQLIMan->query("SET SESSION sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));");
+        $this->_oMySQLIMan->set_charset("utf8");
+        $this->_oMySQLIMan->options(MYSQLI_OPT_INT_AND_FLOAT_NATIVE, 1);
+        $this->_currentDatabase = DB_DATABASE;
+        $this->_mHystoricalResultSet=array();
+        $this->_nError = mysqli_connect_errno();
+    }
 
-	public function changeDatabase($sDbName = DB_DATABASE) {
-		$sOldDb = Database::instance()->getCurrentDatabase();
-		$this->_oMySQLIMan->select_db($sDbName); 
-		$this->_currentDatabase = $sDbName;
-		return $sOldDb;
-	}
-	
-	public function getCurrentDatabase(){return $this->_currentDatabase;}
-	
-	public function escapeString($sString) { return $this->_oMySQLIMan->real_escape_string($sString); }
-	
-	public function fetchAllRows($sSqlQuery, $isArrayMode = false, $sDatabase = false) {
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
-	
-		if($isArrayMode){
-			if($result = $this->_oMySQLIMan->query($sSqlQuery)) {
-				$aaData = array();
-				while ($mLine = $result->fetch_assoc()) $aaData[] = $mLine;
-								
-			} else 	$aaData = false;
+    public function changeDatabase($sDbName = DB_DATABASE) {
+        $sOldDb = Database::instance()->getCurrentDatabase();
+        $this->_oMySQLIMan->select_db($sDbName); 
+        $this->_currentDatabase = $sDbName;
+        return $sOldDb;
+    }
+    
+    public function getCurrentDatabase(){return $this->_currentDatabase;}
+    
+    public function escapeString($sString) { return ($sString != null) ? $this->_oMySQLIMan->real_escape_string($sString) : null; }
+    
+    public function fetchAllRows($sSqlQuery, $isArrayMode = false, $sDatabase = false) {
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
+        
+            if($isArrayMode){
+                if($result = $this->_oMySQLIMan->query($sSqlQuery)) {
+                    $aaData = array();
+                    while ($mLine = $result->fetch_assoc()) $aaData[] = $mLine;
+                                    
+                } else 	$aaData = false;
 
-		}else{
-			if($this->_oMySQLIMan->real_query($sSqlQuery)) $aaData = new Database_Result($this->_oMySQLIMan);
-			else $aaData =  false;
-		}
-		
-		
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
-		return $aaData;
-	}
-	
-	public function fetchOneRow($sSqlQuery, $sDatabase = false) {
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
+            }else{
+                if($this->_oMySQLIMan->real_query($sSqlQuery)) $aaData = new Database_Result($this->_oMySQLIMan);
+                else $aaData =  false;
+            }
+            
+            if($sDatabase)
+                Database::instance()->changeDatabase($sOldDb);
 
-		if($result = $this->_oMySQLIMan->query($sSqlQuery)) $mLine = $result->fetch_assoc();
-		else $mLine = false;
+            return $aaData;
 
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
-		return $mLine;
-	}
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
+    
+    public function fetchOneRow($sSqlQuery, $sDatabase = false) {
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
 
-	public function fetchOneValue($sSqlQuery, $sDatabase = false) {
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
+            if($result = $this->_oMySQLIMan->query($sSqlQuery)) $mLine = $result->fetch_assoc();
+            else $mLine = false;
 
-		if($result = $this->_oMySQLIMan->query($sSqlQuery)) {
-			$mLines = $result->fetch_row();
-			$mLine = $mLines[0];
-						
-		} else $mLine = false;
+            if($sDatabase)
+                Database::instance()->changeDatabase($sOldDb);
 
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
-		return $mLine;
-	}
-		
-	public function doRealQuery($sSqlQuery, $sDatabase = false) { 
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
-	
-		$bResult = $this->_oMySQLIMan->real_query($sSqlQuery);
-		$this->_bResultTransaction = $this->_bResultTransaction && ($bResult != false);
+            return $mLine;
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
 
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
+    public function fetchOneValue($sSqlQuery, $sDatabase = false) {
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
 
-		return  $bResult; 
-	}
+            if($result = $this->_oMySQLIMan->query($sSqlQuery)) {
+                $mLines = $result->fetch_row();
+                $mLine = is_array($mLines) ? $mLines[0] : null;
+                            
+            } else $mLine = false;
 
-	public function doQuery($sSqlQuery, $sDatabase = false) { 
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
+            if($sDatabase)
+                Database::instance()->changeDatabase($sOldDb);
 
-		$bResult = $this->_oMySQLIMan->query($sSqlQuery);
-		$this->_bResultTransaction = $this->_bResultTransaction && ($bResult != false);
+            return $mLine;
 
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
+        
+    public function doRealQuery($sSqlQuery, $sDatabase = false) { 
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
+        
+            $bResult = $this->_oMySQLIMan->real_query($sSqlQuery);
+            $this->_bResultTransaction = $this->_bResultTransaction && ($bResult != false);
 
-		return  $bResult; 
-	}
+            if($sDatabase)
+                Database::instance()->changeDatabase($sOldDb);
 
-	public function doMultiQuery($sSqlQuery, $sDatabase = false) { 
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
+            return  $bResult;
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
 
-		$bResult = $this->_oMySQLIMan->multi_query($sSqlQuery);
-		$this->_bResultTransaction = $this->_bResultTransaction && $bResult;
+    public function doQuery($sSqlQuery, $sDatabase = false) { 
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
 
-		if($bResult){
-			$mResultSet = array();
-			do {
-				if ($result = $this->_oMySQLIMan->store_result())  $mResultSet[] = $result;
-			} while ($this->_oMySQLIMan->next_result());
-			
-			if($sDatabase) Database::instance()->changeDatabase($sOldDb);
+            $bResult = $this->_oMySQLIMan->query($sSqlQuery);
+            $this->_bResultTransaction = $this->_bResultTransaction && ($bResult != false);
 
-			return  $mResultSet; 
+            if($sDatabase)
+                Database::instance()->changeDatabase($sOldDb);
 
-		}else return false;	
-	}
+            return  $bResult;
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
 
-	public function doInsertIntoQuery($sSqlQuery, $sDatabase = false) { 
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
+    public function doMultiQuery($sSqlQuery, $sDatabase = false) { 
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);		
 
-		$bResult = $this->_oMySQLIMan->query($sSqlQuery);
-		$this->_bResultTransaction = $bResult && $this->_bResultTransaction;
-		
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
+            $bResult = $this->_oMySQLIMan->multi_query($sSqlQuery);
+            $this->_bResultTransaction = $this->_bResultTransaction && $bResult;
 
-		return ($bResult) ? $this->_oMySQLIMan->insert_id : false;
-	}
+            if($bResult){
+                $mResultSet = array();
+                do {
+                    if ($result = $this->_oMySQLIMan->store_result())  $mResultSet[] = $result;
+                } while ($this->_oMySQLIMan->next_result());
+                
+                if($sDatabase)
+                    Database::instance()->changeDatabase($sOldDb);
 
-	public function numRows($sSqlQuery, $sDatabase = false) { 
-		//Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
-		if($sDatabase) $sOldDb = Database::instance()->changeDatabase($sDatabase);		
+                return  $mResultSet; 
 
-		$aaResult = $this->_oMySQLIMan->query($sSqlQuery);
-		
-		if($sDatabase) Database::instance()->changeDatabase($sOldDb);
-		
-		return ( $aaResult != false)? $aaResult->num_rows : -1; 
-	}
+            }else return false;
 
-	public function getEnumSetValues($sTable, $sField, $sDatabase = false) {
-		$sEnumValues = $this->fetchOneRow("SHOW COLUMNS FROM `$sTable` LIKE '$sField';");
-		if(preg_match_all("/'([^\']*)'/", $sEnumValues['Type'], $regs))  return $regs[1];
-		else return null;
-	}
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
 
-	//Atomic Execution	
-	public function startTransaction(){
-		$this->_oMySQLIMan->autocommit(false);
-		$this->_bResultTransaction = true;
-	}
+    public function doInsertIntoQuery($sSqlQuery, $sDatabase = false) { 
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
 
-	public function tryCommit(){
-		if($this->_bResultTransaction) $this->_oMySQLIMan->commit();
-		else $this->_oMySQLIMan->rollback();
-		$this->_oMySQLIMan->autocommit(true);
+            $bResult = $this->_oMySQLIMan->query($sSqlQuery);
+            $this->_bResultTransaction = $bResult && $this->_bResultTransaction;
+            
+            if($sDatabase) 
+                Database::instance()->changeDatabase($sOldDb);
 
-		return $this->_bResultTransaction;
-	}
-	
-	public function rollback(){
-		$this->_oMySQLIMan->rollback();
-		$this->_oMySQLIMan->autocommit(true);
-	}
+            return ($bResult) ? $this->_oMySQLIMan->insert_id : false;
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
 
-	public function error() { return $this->_oMySQLIMan->error; }
+    public function numRows($sSqlQuery, $sDatabase = false) { 
+        try {
+            //Se ho intensione di effettura la query su un'altro db, faccio lo swicth temporaneo del db
+            if($sDatabase)
+                $sOldDb = Database::instance()->changeDatabase($sDatabase);
 
-	public function close() { $this->_oMySQLIMan->close(); }
-	
-	public function __destruct() { $this->_oMySQLIMan->close(); }
+            $aaResult = $this->_oMySQLIMan->query($sSqlQuery);
+            
+            if($sDatabase)
+                Database::instance()->changeDatabase($sOldDb);
+            
+            return $aaResult != false ? $aaResult->num_rows : -1;
+        } catch (Exception $e) {
+            error_log("[MySQL Error]\n Message: ". $this->_oMySQLIMan->error ."\nQuery: {$sSqlQuery}\n\n", 0);
+            return false;
+        }
+    }
+
+    public function affectedRows() { 
+        return $this->_oMySQLIMan->affected_rows;
+    }
+
+    public function getEnumSetValues($sTable, $sField, $sDatabase = false) {
+        $sEnumValues = $this->fetchOneRow("SHOW COLUMNS FROM `$sTable` LIKE '$sField';");
+        return preg_match_all("/'([^\']*)'/", $sEnumValues['Type'], $regs) ? $regs[1] : null;
+    }
+
+    //Atomic Execution
+    public function startTransaction(){
+        $this->_oMySQLIMan->autocommit(false);
+        $this->_bResultTransaction = true;
+    }
+
+    public function tryCommit(){
+        if($this->_bResultTransaction) 
+            $this->_oMySQLIMan->commit();
+        else 
+            $this->_oMySQLIMan->rollback();
+        
+        $this->_oMySQLIMan->autocommit(true);
+
+        return $this->_bResultTransaction;
+    }
+    
+    public function rollback(){
+        $this->_oMySQLIMan->rollback();
+        $this->_oMySQLIMan->autocommit(true);
+    }
+
+    public function error() {
+        return $this->_oMySQLIMan->error;
+    }
+
+    public function close() {
+        $this->_oMySQLIMan->close();
+    }
+    
+    public function __destruct() {
+        $this->_oMySQLIMan->close();
+    }
 }
 
 class Database_Result extends MySQLi_Result implements Countable, IteratorAggregate{
-	/* Countable interface */
-	public function count(){return $this->num_rows;}
-	
-	/* IteratorAggregate interface */
-	public function getIterator(){return new Database_ResultIterator($this); }
+    /* Countable interface */
+    public function count() : int{
+        return $this->num_rows;
+    }
+    
+    /* IteratorAggregate interface */
+    public function getIterator(): \Iterator {
+        return new Database_ResultIterator($this); 
+    }
 }
 
 class Database_ResultIterator implements Countable, SeekableIterator{
-	/**
-	 * Basic iterator for MySQLi_Result objects
-	 *
-	 * @author Werner Segers <werner@procurios.nl>
-	 */
-	protected $Result;
-	protected $fetchMode;
-	protected $position;
-	protected $currentRow;
+    /**
+     * Basic iterator for MySQLi_Result objects
+     *
+     * @author Werner Segers <werner@procurios.nl>
+     */
+    protected $Result;
+    protected $fetchMode;
+    protected $position;
+    protected $currentRow;
 
-	/**
-	 * Constructor
-	 * @param MySQLi_Result $Result
-	 * @param constant $fetchMode (MYSQLI_ASSOC, MYSQLI_NUM, or MYSQLI_BOTH)
-	 */
-	public function __construct($Result, $fetchMode = MYSQLI_ASSOC){
-		$this->Result = $Result;
-		$this->fetchMode = $fetchMode;
-	}
+    /**
+     * Constructor
+     * @param MySQLi_Result $Result
+     * @param constant $fetchMode (MYSQLI_ASSOC, MYSQLI_NUM, or MYSQLI_BOTH)
+     */
+    public function __construct($Result, $fetchMode = MYSQLI_ASSOC){
+        $this->Result = $Result;
+        $this->fetchMode = $fetchMode;
+    }
 
-	/**
-	 * Destructor
-	 * Frees the Result object
-	 */
-	public function __destruct(){ $this->Result->free(); }
+    /**
+     * Destructor
+     * Frees the Result object
+     */
+    public function __destruct(){
+        $this->Result->free();
+    }
 
+    /* Countable interface */
 
-	/* Countable interface */
+    /**
+     * Returns the amount of rows in the result
+     * @return int
+     */
+    #[\ReturnTypeWillChange]
+    public function count(): int{
+        return $this->Result->num_rows;
+    }
 
-	/**
-	 * Returns the amount of rows in the result
-	 * @return int
-	 */
-	public function count(){ return $this->Result->num_rows; }
+    /* SeekableIterator interface */
 
+    /**
+     * Rewinds the internal pointer
+     */
+    public function rewind(): void{
+        // data_seek moves the Results internal pointer
+        $this->Result->data_seek($this->position = 0);
 
-	/* SeekableIterator interface */
+        // prefetch the current row to have it available for calls to current()
+        // note that this advances the Results internal pointer.
+        $this->currentRow = $this->Result->fetch_array($this->fetchMode);
+    }
 
-	/**
-	 * Rewinds the internal pointer
-	 */
-	public function rewind(){
-		// data_seek moves the Results internal pointer
-		$this->Result->data_seek($this->position = 0);
+    /**
+     * Moves the internal pointer one step forward
+     */
+    public function next(): void{
+        ++$this->position;
 
-		// prefetch the current row to have it available for calls to current()
-		// note that this advances the Results internal pointer.
-		$this->currentRow = $this->Result->fetch_array($this->fetchMode);
-	}
+        // prefetch the current row to have it available for calls to current()
+        $this->currentRow = $this->Result->fetch_array($this->fetchMode);
+    }
 
-	/**
-	 * Moves the internal pointer one step forward
-	 */
-	public function next(){
-		++$this->position;
+    /**
+     * Moves the internal pointer to the specified offset
+     * @param int $offset
+     */
+    public function seek($offset):void{
+        if ($offset < $this->Result->num_rows) {
+            $this->position = $offset;
+            $this->Result->data_seek($offset);
+            $this->currentRow = $this->Result->fetch_array($this->fetchMode);
+        } else 	throw new OutOfBoundsException('Invalid seek position');
+    }
 
-		// prefetch the current row to have it available for calls to current()
-		$this->currentRow = $this->Result->fetch_array($this->fetchMode);
-	}
+    /**
+     * Returns true if the current position is valid, false otherwise.
+     * @return bool
+     */
+    #[\ReturnTypeWillChange]
+    public function valid(): bool{
+        return $this->position < $this->Result->num_rows;
+    }
 
-	/**
-	 * Moves the internal pointer to the specified offset
-	 * @param int $offset
-	 */
-	public function seek($offset){
-		if ($offset < $this->Result->num_rows) {
-			$this->position = $offset;
-			$this->Result->data_seek($offset);
-			$this->currentRow = $this->Result->fetch_array($this->fetchMode);
-		} else 	throw new OutOfBoundsException('Invalid seek position');
-	}
+    /**
+     * Returns the row that matches the current position
+     * @return array
+     */
+    #[\ReturnTypeWillChange]
+    public function current() { //:mixed
+        return $this->currentRow;
+    }
 
-	/**
-	 * Returns true if the current position is valid, false otherwise.
-	 * @return bool
-	 */
-	public function valid(){return $this->position < $this->Result->num_rows; }
-
-	/**
-	 * Returns the row that matches the current position
-	 * @return array
-	 */
-	public function current(){ return $this->currentRow; }
-
-	/**
-	 * Returns the current position
-	 * @return int
-	 */
-	public function key(){ return $this->position; }
+    /**
+     * Returns the current position
+     * @return int
+     */
+    #[\ReturnTypeWillChange]
+    public function key():mixed {
+        return $this->position;
+    }
 }
-
-
-

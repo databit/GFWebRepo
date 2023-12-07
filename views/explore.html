@@ -4,241 +4,241 @@
 </div>
 <div class="modal-backdrop fade in" ng-show="loading"></div>
 
-<!-- Main page -->
-<div id="page-wrapper" nv-file-drop="" uploader="ftpUploader" filters="queueLimit">
- <div ng-show="!showEditor">
-  <div ng-class="{'col-lg-9': ftpUploader.queue.length > 0, 'col-lg-12': ftpUploader.queue.length == 0}" >
-   <div class="row">
-    <div class="col-lg-7 col-md-6 col-sm-12 col-xs-12">
-     <h4>
-      <span ng-repeat="(key, currentPath) in currentPaths">
-       <a ng-click="listDirFromIndex(0)" ng-show="key == 0">
-        <i class="fa fa-home fa-2x"></i></a>
-       <a ng-click="listDirFromIndex(key)" ng-show="key != 0">{{currentPath}} </a> /
-      </span>
-     </h4>
-    </div>
-    <div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
-     <div class="btn-group v-spacer pull-right" role="group">
-      <button class="btn btn-theme btn-success btn-file">
-       <i class="glyphicon glyphicon-plus"></i> Aggiungi file <input type="file" nv-file-select uploader="ftpUploader" multiple />
-      </button>
+<!-- Topbar -->
+<nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow" ng-show="logged">
+  <!-- Sidebar Toggle (Topbar) -->
+  <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+    <i class="fa fa-bars"></i>
+  </button>
 
-      <div class="btn-group" role="group">
-       <button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-         <span class="caret"></span>
-       </button>
-       <ul class="dropdown-menu">
-         <li>
-          <a ng-click="openCreate(false)" data-toggle="modal" data-target="#newWindow">
-           <i class="fa fa-folder"></i> Nuova cartella
-          </a>
-         </li>
-         <li>
-          <a ng-click="openCreate(true)" data-toggle="modal" data-target="#newWindow">
-           <i class="fa fa-file"></i> Nuovo file
-          </a>
-         </li>
-        </ul>
-      </div>
-     </div>    
-    </div>
-    <div class="col-lg-3 col-md-3 col-sm-8 col-xs-7">
-     <div class="input-group v-spacer">
-      <input type="text" class="form-control" ng-model="search" placeholder="Filtra file e cartelle" />
-      <span class="input-group-addon">
-       <i class="glyphicon glyphicon-search"></i>
-      </span>
-     </div>  
-    </div>
+  <span class="navbar-brand mb-0 h5">
+   <span ng-repeat="(key, currentPath) in currentPaths">
+    <a ng-click="listDirFromIndex(0)" ng-show="key == 0">
+     <i class="fa fa-home fa-lg"></i></a>
+    <a ng-click="listDirFromIndex(key)" ng-show="key != 0">{{currentPath}} </a> /
+   </span>
+  </span>
+
+  <!-- Topbar Navbar -->
+  <div class="btn-toolbar  ml-auto" role="toolbar" aria-label="Carica o crea un nuovo file o cartella">
+   <div class="btn-group mr-2" role="group">
+    <button class="btn btn-theme btn-success btn-file">
+     <i class="fas fa-upload"></i> Carica file 
+     <input type="file" nv-file-select uploader="ftpUploader" multiple />
+    </button>
    </div>
 
-   <!-- Files and folders list -->
-   <div class="row" nv-file-over="" uploader="ftpUploader">
-    <a class="col-lg-1 col-md-2 col-sm-3 col-xs-4 v-spacer text-center filename" ng-repeat="(key, folder) in folders | filter:{name:search}" ng-dblclick="list(folder.name)" ng-right-click="openContextMenu($event, key, false)">
-     <i class="fa fa-folder fa-4x"></i><br />{{folder.name}}
-    </a>
+   <div class="btn-group" role="group">
+    <button type="button" class="btn btn-theme btn-primary" ng-click="openCreate(false)" data-toggle="modal" data-target="#newWindow" title="Nuova cartella">
+     <i class="fa fa-folder fa-lg"></i>
+    </button>
 
-    <a class="col-lg-1 col-md-2 col-sm-3 col-xs-4 v-spacer text-center filename" ng-repeat="(key, file) in files | filter:{name:search}" ng-dblclick="doDefaultActionFile(key)" ng-right-click="openContextMenu($event, key, true)" >
-     <i class="fa fa-{{file | getIcon:this}} fa-4x"></i><br />{{file.name}}
-    </a>
+    <button type="button" class="btn btn-theme btn-primary" ng-click="openCreate(true)" data-toggle="modal" data-target="#newWindow" title="Nuovo file">
+     <i class="fa fa-file fa-lg"></i>
+    </button>
    </div>
- </div>
-  
-  <div class="v-spacer" ng-class="{'col-lg-3': ftpUploader.queue.length > 0 && !ftpUploader.isUploading, 'hide': ftpUploader.queue.length == 0 || ftpUploader.isUploading}" >
-   <div class="panel panel-default" ng-show="ftpUploader.queue.length > 0">
-    <ul class="list-group">
-     <li class="list-group-item" ng-repeat="(key, attachment) in ftpUploader.queue">
-      <span ng-bind="attachment.file.name"></span>
-      <button type="button" ng-click="attachment.remove()" class="btn btn-danger btn-xs pull-right">
-       <span class="glyphicon glyphicon-trash"></span>
-      </button>
-     </li>
-    </ul>
-    <div class="panel-footer">
-     <button type="button" class="btn btn-success btn-xs" ng-click="ftpUploader.uploadAll()" ng-disabled="!ftpUploader.getNotUploadedItems().length">
-      <span class="glyphicon glyphicon-upload"></span> Carica!
-     </button>
-     <button type="button" class="btn btn-warning btn-xs" ng-click="ftpUploader.cancelAll()" ng-disabled="!ftpUploader.isUploading">
-      <span class="glyphicon glyphicon-ban-circle"></span> Annulla
-     </button>
-     <button type="button" class="btn btn-danger btn-xs" ng-click="ftpUploader.clearQueue()" ng-disabled="!ftpUploader.queue.length">
-      <span class="glyphicon glyphicon-trash"></span> Rimuovi tutti
-     </button>
-    </div>
-   </div> 
-  </div> 
- </div>
-
- <!-- Code editor -->
- <div class="col-xs-12" ng-show="showEditor">
-  <div class="row" id="editorTitle">
-   <h4>Modifica <b>{{auxItem.file.name}}</b></h4>
   </div>
 
-  <div class="row">
-   <textarea id="CodeMirrorEditor"></textarea>
-   <div class="clearfix"></div>
-  </div>  
+  <!-- Topbar Search -->
+  <form class="d-none d-sm-inline-block form-inline my-2 my-md-0 mw-100 px-2">
+    <div class="input-group">
+     <input type="text" class="form-control bg-light small" ng-model="search" placeholder="Filtra file o cartelle" />
+     <div class="input-group-append">
+      <span class="input-group-text">
+       <i class="fas fa-search"></i>
+      </span>
+     </div>
+    </div>  
 
-  <div class="row v-spacer text-right" id="editorCommand">
-   <button class="btn btn-success h-spacer" ng-click="saveFile()">
-    <i class="fa fa-floppy-o" aria-hidden="true"></i> Salva
-   </button>
-   <button class="btn btn-default" ng-click="showEditor = false">
-    <i class="fa fa-undo" aria-hidden="true"></i> Annulla
-   </button>
+  </form>
+</nav>
+
+<div class="container-fluid">
+ <!-- Main page -->
+ <div id="page-wrapper" nv-file-drop="" uploader="ftpUploader" filters="queueLimit">
+  <div ng-show="!showEditor">
+   <div ng-class="{'col-lg-9': ftpUploader.queue.length > 0, 'col-lg-12': ftpUploader.queue.length == 0}" >
+    <!-- Files and folders list -->
+    <div class="row mt-3" nv-file-over="" uploader="ftpUploader">
+     <a class="col-lg-1 col-md-2 col-sm-3 col-4 my-1 text-center filename" ng-repeat="(key, folder) in folders | filter:{name:search}" ng-dblclick="list(folder.name)" ng-right-click="openContextMenu($event, key, false)">
+      <i class="fa-regular fa-folder fa-4x"></i><br />{{folder.name}}
+     </a>
+
+     <a class="col-lg-1 col-md-2 col-sm-3 col-4 text-center filename" ng-repeat="(key, file) in files | filter:{name:search}" ng-dblclick="doDefaultActionFile(key)" ng-right-click="openContextMenu($event, key, true)" >
+      <i class="fa-regular fa-{{file | getIcon:this}} fa-4x"></i><br />{{file.name}}
+     </a>
+    </div>
+  </div>
+   
+   <div class="my-1" ng-class="{'col-lg-3': ftpUploader.queue.length > 0 && !ftpUploader.isUploading, 'hide': ftpUploader.queue.length == 0 || ftpUploader.isUploading}" >
+    <div class="panel panel-default" ng-show="ftpUploader.queue.length > 0">
+     <ul class="list-group">
+      <li class="list-group-item" ng-repeat="(key, attachment) in ftpUploader.queue">
+       <span ng-bind="attachment.file.name"></span>
+       <button type="button" ng-click="attachment.remove()" class="btn btn-danger  btn-sm float-right">
+        <span class="fas fa-trash"></span>
+       </button>
+      </li>
+     </ul>
+     <div class="panel-footer">
+      <button type="button" class="btn btn-success" ng-click="ftpUploader.uploadAll()" ng-disabled="!ftpUploader.getNotUploadedItems().length">
+       <span class="fas fa-upload"></span> Carica!
+      </button>
+      <button type="button" class="btn btn-warning  btn-sm" ng-click="ftpUploader.cancelAll()" ng-disabled="!ftpUploader.isUploading">
+       <span class="fas fa-ban-circle"></span> Annulla
+      </button>
+      <button type="button" class="btn btn-danger  btn-sm" ng-click="ftpUploader.clearQueue()" ng-disabled="!ftpUploader.queue.length">
+       <span class="fas fa-trash"></span> Rimuovi tutti
+      </button>
+     </div>
+    </div> 
+   </div> 
+  </div>
+
+  <!-- Code editor -->
+  <div class="col-12" ng-show="showEditor">
+   <div class="row mb-2" id="editorTitle">
+    <div class="col-12">
+     <h4>Modifica <b>{{auxItem.file.name}}</b></h4>
+    </div>
+   </div>
+
+   <div class="row">
+    <div class="col-12 border rounded px-1">
+     <textarea id="CodeMirrorEditor"></textarea>
+     <div class="clearfix"></div>
+    </div>  
+   </div>  
+
+   <div class="row" id="editorCommand">
+    <div class="col-12 my-1 text-right">
+     <button class="btn btn-success mr-2" ng-click="saveFile()">
+      <i class="fas fa-check mr-2" aria-hidden="true"></i> Salva
+     </button>
+     <button class="btn btn-secondary" ng-click="showEditor = false">
+      <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+     </button>
+    </div>
+   </div>
   </div>
  </div>
 </div>
 
 <!-- Right click context menu -->
-<ul id="contextMenu" class="dropdown-menu" role="menu">
- <li>
-  <a ng-show="auxItem.editable" ng-click="openEditor()">
-    <i class="fa fa-pencil fa-fw"></i> Modifica
-  </a>
- </li>
- <li>
-  <a ng-show="auxItem.isFile" ng-click="download()">
-    <i class="fa fa-download fa-fw"></i> Scarica
-  </a>
- </li>
- <li>
-  <a data-toggle="modal" data-target="#renameWindow" ng-click="$('#renameFilename').select();">
-   <i class="fa fa-font fa-fw"></i> Rinomina
-  </a>
- </li>
- <li>
-  <a data-toggle="modal" data-target="#moveWindow"  ng-show="auxItem.isFile" ng-click="openMove()">
-   <i class="fa fa-arrows fa-fw"></i> Sposta
-  </a>
- </li>
- <li>
-  <a data-toggle="modal" data-target="#deleteWindow">
-   <i class="fa fa-trash fa-fw"></i> Elimina
-  </a>
- </li>
-</ul>
+<div id="contextMenu" class="dropdown-menu" role="menu">
+ <a class="dropdown-item" ng-show="auxItem.editable" ng-click="openEditor()">
+  <i class="fa fa-pencil fa-fw mr-1"></i> Modifica
+ </a>
+ <a class="dropdown-item" ng-show="auxItem.isFile" ng-click="download()">
+   <i class="fa fa-download fa-fw mr-1"></i> Scarica
+ </a>
+ <a class="dropdown-item" data-toggle="modal" data-target="#renameWindow" ng-click="$('#renameFilename').select();">
+  <i class="fa fa-font fa-fw mr-1"></i> Rinomina
+ </a>
+ <a class="dropdown-item" data-toggle="modal" data-target="#moveWindow"  ng-show="auxItem.isFile" ng-click="openMove()">
+  <i class="fa fa-arrows fa-fw mr-1"></i> Sposta
+ </a>
+ <a class="dropdown-item" data-toggle="modal" data-target="#deleteWindow">
+  <i class="fa fa-trash fa-fw mr-1"></i> Elimina
+ </a>
+</div>
 
 <!-- Windows -->
-<div id="deleteWindow" class="modal fade">
+<div id="deleteWindow" class="modal fade" tabindex="-1" aria-labelledby="deleteLabel" aria-hidden="true">
  <div class="modal-dialog">
   <div class="modal-content">
    <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h4 class="modal-title">Conferma cancellazione file</h4>
+    <h5 class="modal-title" id="deleteLabel">Conferma cancellazione file</h5>
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+    </button>
    </div>
    <div class="modal-body">
-    <h4>Sei sicuro di voler eliminare il file <b>{{auxItem.file.name}}</b>?</h4>
-    <div class="row">
-     <div class="col-md-12 text-right">
-      <button class="btn btn-danger h-spacer" ng-click="delete()">
-       <i class="fa fa-trash" aria-hidden="true"></i> Elimina
-      </button>
-      <button class="btn btn-default" data-dismiss="modal">
-      <i class="fa fa-undo" aria-hidden="true"></i> Annulla
-      </button>
-     </div>
-    </div>
+    <div class="row my-1">
+     <div class="col-12 text-center">
+      <h5>Sei sicuro di voler eliminare il file <b>{{auxItem.file.name}}</b>?</h5>
+     </div>  
+    </div>  
+   </div>
+   <div class="modal-footer">
+    <button class="btn btn-danger mr-2" ng-click="delete()">
+     <i class="fa fa-trash mr-2" aria-hidden="true"></i> Elimina
+    </button>
+    <button class="btn btn-secondary" data-dismiss="modal">
+     <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+    </button>
    </div>
   </div>
  </div>
 </div>
 
-<div id="renameWindow" class="modal fade">
+<div id="renameWindow" class="modal fade" tabindex="-1" aria-labelledby="renameLabel" aria-hidden="true">
  <div class="modal-dialog">
   <div class="modal-content">
    <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h4 class="modal-title">Rinomina {{ auxItem.isFile | iif : "file" : "cartella"}}</h4>
+    <h5 class="modal-title" id="renameLabel">Rinomina {{ auxItem.isFile | iif : "file" : "cartella"}}</h5>
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+    </button>
    </div>
    <div class="modal-body">
-    <div class="row v-spacer">
-     <div class="col-md-12 text-right">
+    <div class="row my-1">
+     <div class="col-12 text-right">
       <input type="text" class="form-control" id="renameFilename" ng-model="renameFilename" placeholder="Inserisci il nome del file" required autofocus />
      </div>  
     </div>  
-
-    <div class="row">
-     <div class="col-md-12 text-right">
-      <button class="btn btn-success h-spacer" ng-click="rename()">
-       <i class="fa fa-pencil" aria-hidden="true"></i> Rinomina
-      </button>
-      <button class="btn btn-default" data-dismiss="modal">
-       <i class="fa fa-undo" aria-hidden="true"></i> Annulla
-      </button>
-     </div>
-    </div>
+   </div>
+   <div class="modal-footer">
+    <button class="btn btn-primary mr-2" ng-click="rename()">
+     <i class="fa fa-pencil mr-2" aria-hidden="true"></i> Rinomina
+    </button>
+    <button class="btn btn-secondary" data-dismiss="modal">
+     <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+    </button>
    </div>
   </div>
  </div>
 </div>
 
-<div id="newWindow" class="modal fade">
+<div id="newWindow" class="modal fade" tabindex="-1" aria-labelledby="newLabel" aria-hidden="true">
  <div class="modal-dialog">
   <div class="modal-content">
    <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h4 class="modal-title">Nuov{{ auxItem.isFile | iif : "o file" : "a cartella"}}</h4>
+    <h5 class="modal-title" id="newLabel">Nuov{{ auxItem.isFile | iif : "o file" : "a cartella"}}</h5>
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+    </button>
    </div>
    <div class="modal-body">
-    <div class="row v-spacer">
-     <div class="col-md-12 text-right">
+    <div class="row my-1">
+     <div class="col-12 text-right">
       <input type="text" class="form-control" id="newFilename" ng-model="auxItem.filename" placeholder="Inserisci il nome del file" required  autofocus/>
      </div>  
     </div>  
-
-    <div class="row">
-     <div class="col-md-12 text-right">
-      <button class="btn btn-success h-spacer" ng-click="create()">
-       <i class="fa fa-floppy-o" aria-hidden="true"></i> Salva
-      </button>
-      <button class="btn btn-default" data-dismiss="modal">
-       <i class="fa fa-undo" aria-hidden="true"></i> Annulla
-      </button>
-     </div>
-    </div>
+   </div>
+   <div class="modal-footer">
+    <button class="btn btn-primary mr-2" ng-click="create()">
+     <i class="fa fa-check mr-2" aria-hidden="true"></i> Salva
+    </button>
+    <button class="btn btn-secondary" data-dismiss="modal">
+     <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+    </button>
    </div>
   </div>
  </div>
 </div>
 
-<div id="moveWindow" class="modal fade">
+<div id="moveWindow" class="modal fade" tabindex="-1" aria-labelledby="moveLabel" aria-hidden="true">
  <div class="modal-dialog modal-lg">
   <div class="modal-content">
-   <!-- Loading layer for move window -->
-   <div class="modal modal-open fade in show"  ng-show="loadingMove">
-    <div class="loader"></div>
-   </div>
-   <div class="modal-backdrop fade in" ng-show="loadingMove"></div>
-
    <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
-    <h4 class="modal-title">Sposta {{auxItem.file.name}}</h4>
+    <h5 class="modal-title" id="moveLabel">Sposta {{auxItem.file.name}}</h5>
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+    </button>
    </div>
    <div class="modal-body">
-    <div class="row v-spacer">
+    <div class="row my-1">
      <p>
       <span ng-repeat="(key, movingPath) in moving.paths">
        <a ng-click="listDirFromIndex(0, true)" ng-show="key == 0">
@@ -247,22 +247,18 @@
       </span>
      </p>
      
-     <a class="col-lg-1 col-md-2 col-sm-3 col-xs-4 v-spacer text-center filename" ng-repeat="(key, folder) in moving.folders" ng-dblclick="list(folder.name, true)">
+     <a class="col-lg-1 col-md-2 col-sm-3 col-4 my-1 text-center filename" ng-repeat="(key, folder) in moving.folders" ng-dblclick="list(folder.name, true)">
       <i class="fa fa-folder fa-3x"></i><br />{{folder.name}}
      </a>
     </div>  
-
-    <div class="row">
-     <div class="col-md-12 text-right">
-      <button class="btn btn-success h-spacer" ng-click="move()">
-       <i class="fa fa-arrows" aria-hidden="true"></i> Sposta
-      </button>
-      <button class="btn btn-default" data-dismiss="modal">
-       <i class="fa fa-undo" aria-hidden="true"></i> Annulla
-      </button>
-     </div>
-    </div>
-
+   </div>
+   <div class="modal-footer">
+    <button class="btn btn-primary mr-2" ng-click="move()">
+     <i class="fa fa-arrows mr-2" aria-hidden="true"></i> Sposta
+    </button>
+    <button class="btn btn-secondary" data-dismiss="modal">
+     <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+    </button>
    </div>
   </div>
  </div>

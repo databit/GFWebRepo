@@ -1,0 +1,239 @@
+<div class="container-fluid mt-3">
+ <div class="col-12" ng-show="mode == 'list'">
+  <div>
+   <a ng-click="addUser()" class="btn btn-success text-light float-right mt-1">
+    <i class="fas fa-plus"></i> Nuovo utente
+   </a>
+   <a ng-click="mode = 'import'" class="btn btn-primary text-light float-right mt-1 mr-2">
+    <i class="fa-solid fa-upload"></i> Importa
+   </a>
+
+   <h3>
+    <i class="fa fa-users mr-2"></i>
+    Utenti
+   </h3>
+   <hr class="my-4">
+  </div> 
+
+  <div class="row">
+   <div class="col-xs-6 col-sm-8  my-2">
+    Mostra 
+    <label>
+     <select class="form-control" ng-model="numOfEntry">
+      <option ng-value="20">20</option>
+      <option ng-value="30">30</option>
+      <option ng-value="50">50</option>
+      <option ng-value="100">100</option>
+     </select>
+    </label>
+    utenti
+   </div>
+  
+   <div class="col-xs-6 col-sm-4 my-2">
+    <div class="input-group">
+     <div class="input-group-prepend">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+     </div>
+     <input class="form-control" type="text" ng-model="search" ng-change="currentPage = 1" placeholder="Inserisci una chiave di ricerca" />
+    </div>
+   </div>
+  </div>
+ 
+  <div class="row">
+   <table class="table table-sm table-striped table-hover">
+    <tr class="d-flex">
+     <th class="flex-shink-0 text-center">
+      <input class="" type="checkbox"  ng-checked="selectedWorkes.length == filtered.length" ng-click="selectDeselectAllWorker()" />
+     </th>
+     <th class="col">Nome utente</th>
+     <th class="col-3">Directory</th>
+     <th class="col-2">Ruolo</th>
+     <th class="col-2">Commenti</th>
+     <th class="col-1"></th>
+    </tr>
+    <tr class="d-flex" ng-repeat="(key, user) in filtered = (users | filter:search) | startFrom:(currentPage-1)*numOfEntry | limitTo:numOfEntry" ng-class="{'table-success': user.IsAdmin == 1}">
+     <td class="flex-shink-0 py-0 text-center">
+      <input class="" type="checkbox" name="selectedWorkes[]" value="{{user.id}}" ng-checked="selectedWorkes.indexOf(user.id) > -1" ng-click="toggleSelectionWorker(user.id)" />
+     </td>
+
+     <td class="col">{{user.User}}</td>
+     <td class="col-3">{{user.Dir}}</td>
+     <td class="col-2">{{user.IsAdmin == 1 ? 'Amministratore' : 'Utente' }}</td>
+     <td class="col-2">{{user.comment}}</td>
+     <td class="col-1 px-0">
+      <button class="btn btn-primary btn-sm mx-1 d-none d-md-inline-block" title="Modifica utente" ng-click="editUser(user.id)">
+       <i class="fa fa-pencil-alt"></i>
+      </button>
+      <button class="btn btn-danger  btn-sm mx-1 d-none d-md-inline-block" title="Elimina utente" ng-click="openDeleteUser(user.id)" data-toggle="modal" data-target="#deleteWindow">
+       <i class="fa fa-trash-alt"></i>
+      </button>
+     </td>
+    </tr>
+    <tr>
+     <td colspan="4" class="text-center" ng-show="filtered.length/numOfEntry > 1">
+      <ul class="pagination justify-content-center">
+        <li class="page-item" ng-class="{'disabled': currentPage == 1}">
+         <a href="#" class="page-link" ng-click="previousPage()">&laquo;</a>
+        </li>
+        <li ng-repeat="n in [] | range:1:Math.ceil(filtered.length/numOfEntry)" class="{{n == currentPage | iif : 'active' : ''}}">
+         <a href="#" class="page-link" ng-click="setPage(n)">{{n}}</a>
+        </li>
+        <li class="page-item" ng-class="{'disabled': currentPage == Math.ceil(filtered.length/numOfEntry)}">
+         <a href="#" class="page-link" ng-click="nextPage(filtered.length)">&raquo;</a>
+        </li>
+      </ul>
+     </td>
+    </tr>
+   </table>
+  </div>
+ </div>
+
+ <div class="col-12" ng-show="mode == 'edit'">
+  <div>
+   <h2>
+    <a href="#" class="my-2" ng-click="backList()">Lista utenti</a> &#187;
+    <span class="font-weight-light" ng-show="auxUser.id == null">Inserisci un nuovo utente</span>
+    <span class="font-weight-light" ng-show="auxUser.id != null">Modifica {{auxUser.realname}}</span>
+   </h2>
+   <hr class="my-4">
+  </div>
+
+  <form class="needs-validation" novalidate ng-submit="saveUser()">
+   <div class="form-row">
+    <div class="col-12 col-md-6 mb-3">
+     <label>Nome utente</label>
+     <input type="text" class="form-control" ng-model="auxUser.username" placeholder="inserisci il nome utente" ng-disabled="auxUser.id != null" />
+     <div class="invalid-feedback">Il nome utente &egrave; necessario!</div>
+    </div>   
+   
+    <div class="col-12 col-md-6 mb-3">
+     <label>Nome e cognome</label>
+     <input type="text" class="form-control" ng-model="auxUser.realname" placeholder="inserisci il nome reale" />
+     <div class="invalid-feedback">Il nominativo &egrave; necessario!</div>
+    </div>
+   </div>
+
+   <div class="form-row">
+    <div class="col-12 col-md-6 mb-3">
+     <label>Ruolo</label>
+     <select class="form-control" ng-model="auxUser.usertype" ng-options="usertype.id as usertype.title for usertype in usertypes" required ></select>
+     <div class="invalid-feedback">Il ruolo &egrave; necessaria!</div>
+    </div>
+    <div class="col-12 col-md-6 mb-3">
+     <label>Tipo di accesso</label>
+     <select class="form-control" ng-model="auxUser.login_type" required >
+      <option value="DEFAULT">Email/Password</option>
+      <option value="GOOGLE">Google Auth</option>
+     </select>
+     <div class="invalid-feedback">La modalit&agrave; di accesso &egrave; necessaria!</div>
+    </div>
+   </div>
+   
+   <div class="form-row" ng-show="auxUser.login_type == 'DEFAULT'">
+    <div class="col-12 col-md-6 mb-3">
+     <label>Password</label>
+     <input type="password" class="form-control" id="passwordNew" ng-model="auxUser.passwordNew" ng-minlength="8" placeholder="la password deve lunga almeno 8 caratteri" ng-required="auxUser.id == null" />
+     <div class="invalid-feedback">La password deve essere lunga almeno 8 caratteri</div>
+   </div>
+
+    <div class="col-12 col-md-6 mb-3">
+     <label>Conferma password</label>
+     <input type="password" class="form-control" ng-model="auxUser.passwordConfirm" ng-minlength="8" pw-check="passwordNew" placeholder="reinserire la password" ng-required="auxUser.id == null" />
+     <div class="invalid-feedback">La password di controllo non coincide con la password</div>
+    </div>
+   </div>
+   
+   <div class="form-row text-right d-block">
+    <button type="button" class="btn btn-secondary" ng-click="backList()">
+     <span class="fas fa-trash-alt"></span> Annulla
+    </button>
+    
+    <button type="submit" class="btn btn-success ml-3" ng-disabled="userForm.$invalid">
+     <span class="fas fa-check"></span> Salva
+    </button>
+   </div> 
+   
+  </form>
+
+</div>
+
+ <div class="col-12" ng-show="mode == 'import'">
+  <div>
+   <a ng-click="importUsers()" class="btn btn-success text-light float-right mt-1">
+    <i class="fa-solid fa-file-arrow-up"></i> Importa file
+   </a>
+
+   <h3>
+    <a ng-click="mode = 'list'">
+     <i class="fa fa-users mr-2"></i>
+     Utenti
+    </a>
+    &#187;
+    Importa elenco utenti
+   </h3>
+   <hr class="my-4">
+  </div> 
+
+  <div class="row" ng-show="false">
+   <table class="table table-sm table-striped table-hover">
+    <tr class="d-flex">
+     <th class="flex-shink-0 text-center">
+      <input class="" type="checkbox"  ng-checked="selectedWorkes.length == filtered.length" ng-click="selectDeselectAllWorker()" />
+     </th>
+     <th class="col">Nome utente</th>
+     <th class="col-3">Directory</th>
+     <th class="col-2">Ruolo</th>
+     <th class="col-2">Commenti</th>
+     <th class="col-1"></th>
+    </tr>
+    <tr class="d-flex" ng-repeat="(key, user) in filtered = (users | filter:search) | startFrom:(currentPage-1)*numOfEntry | limitTo:numOfEntry" ng-class="{'table-success': user.IsAdmin == 1}">
+     <td class="flex-shink-0 py-0 text-center">
+      <input class="" type="checkbox" name="selectedWorkes[]" value="{{user.id}}" ng-checked="selectedWorkes.indexOf(user.id) > -1" ng-click="toggleSelectionWorker(user.id)" />
+     </td>
+
+     <td class="col">{{user.User}}</td>
+     <td class="col-3">{{user.Dir}}</td>
+     <td class="col-2">{{user.IsAdmin == 1 ? 'Amministratore' : 'Utente' }}</td>
+     <td class="col-2">{{user.comment}}</td>
+     <td class="col-1 px-0">
+      <button class="btn btn-primary btn-sm mx-1 d-none d-md-inline-block" title="Modifica utente" ng-click="editUser(user.id)">
+       <i class="fa fa-pencil-alt"></i>
+      </button>
+      <button class="btn btn-danger  btn-sm mx-1 d-none d-md-inline-block" title="Elimina utente" ng-click="openDeleteUser(user.id)" data-toggle="modal" data-target="#deleteWindow">
+       <i class="fa fa-trash-alt"></i>
+      </button>
+     </td>
+    </tr>
+    <tr>
+     <td colspan="4" class="text-center" ng-show="filtered.length/numOfEntry > 1">
+      <ul class="pagination justify-content-center">
+        <li class="page-item" ng-class="{'disabled': currentPage == 1}">
+         <a href="#" class="page-link" ng-click="previousPage()">&laquo;</a>
+        </li>
+        <li ng-repeat="n in [] | range:1:Math.ceil(filtered.length/numOfEntry)" class="{{n == currentPage | iif : 'active' : ''}}">
+         <a href="#" class="page-link" ng-click="setPage(n)">{{n}}</a>
+        </li>
+        <li class="page-item" ng-class="{'disabled': currentPage == Math.ceil(filtered.length/numOfEntry)}">
+         <a href="#" class="page-link" ng-click="nextPage(filtered.length)">&raquo;</a>
+        </li>
+      </ul>
+     </td>
+    </tr>
+   </table>
+  </div>
+
+  <div class="row" ng-show="electronicDocument == null || true">
+   <div class="col-12 p-2" ondrop="angular.element(this).scope().xmlUploadhHandler(event)" ondragover="event.preventDefault()">
+    <div class="card mt-2 p-5 d-block">
+     <div class="card-body bg-white my-5" onclick="$('#xmlInvoiceFile').trigger('click')" title="Importa file in formato CSV o XLS" aria-label="Importa file in formato CSV o XLS"> 
+      <h6 class="card-title text-center font-weight-bold">
+       <i class="fas fa-cloud-upload-alt fa-2x mr-4"></i> Trascina il file CSV o XLS oppure Clicca qui per caricare l'elenco degli utenti
+      </h6>
+     </div>
+    </div>
+   </div>
+  </div>
+
+ </div>
+
+</div>

@@ -16,9 +16,9 @@ if(isset($_GET['cmd']) && $_GET['cmd']=='download')
 if(isset($_POST['cmd'])){
     switch($_POST['cmd']){
         case 'list':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 exit(json_encode(array(
@@ -29,14 +29,14 @@ if(isset($_POST['cmd'])){
                 $_mHandler->quit();
 
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
 
             break;
 
         case 'list-folders':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 exit(json_encode(array(
@@ -46,87 +46,87 @@ if(isset($_POST['cmd'])){
                 $_mHandler->quit();
 
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
 
             break;
 
         case 'upload':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 $_mHandler->chdir($sPath);
                 $bResult = $_mHandler->store($_FILES['upload']['tmp_name'], $_FILES['upload']['name']);
                 
                 $_mHandler->quit();
-                exit(json_encode(array('success' => $bResult, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
+                exit(json_encode(array('success' => $bResult, 'is_logged' => true, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'rename':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 $_mHandler->chdir($sPath);
                 $bResult = $_mHandler->rename($_POST['from'], $_POST['to']);
                 
                 $_mHandler->quit();
-                exit(json_encode(array('success' => $bResult, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
+                exit(json_encode(array('success' => $bResult, 'is_logged' => true, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'delete':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 $_mHandler->chdir($sPath);
                 $bResult = $_mHandler->delete($_POST['filename']);
                 
                 $_mHandler->quit();
-                exit(json_encode(array('success' => $bResult, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
+                exit(json_encode(array('success' => $bResult, 'is_logged' => true, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'create':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 $_mHandler->chdir($sPath);
                 $bResult = $_POST['isFile'] ? $_mHandler->create($_POST['filename']) : $_mHandler->mkdir($_POST['filename']);
                 
                 $_mHandler->quit();
-                exit(json_encode(array('success' => $bResult, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
+                exit(json_encode(array('success' => $bResult, 'is_logged' => true, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'move':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPathFrom = $_POST['pathFrom'];
                 $sPathTo = $_POST['pathTo'];
 
                 // Create the temporaly file for download file from ftp
-                $sTempFile = tempnam(sys_get_temp_dir(), $_SESSION['gfWebRepo']['user']['username']);
+                $sTempFile = tempnam(sys_get_temp_dir(), $_SESSION['webRepo']['user']['username']);
 
                 // Copy the file localy
                 $_mHandler->chdir($sPathFrom);
@@ -139,30 +139,30 @@ if(isset($_POST['cmd'])){
                         if($_mHandler->delete($_POST['filename']))
                             $aResult = array('success' => true );
                         else 
-                            $aResult = array('success' => false, 'error' => 'delete-failed' );
+                            $aResult = array('success' => false, 'is_logged' => true, 'error' => 'delete-failed' );
 
                     } else 
-                        $aResult = array('success' => false, 'error' => 'store-failed' );
+                        $aResult = array('success' => false, 'is_logged' => true, 'error' => 'store-failed' );
                         
                 } else 
-                    $aResult = array('success' => false, 'error' => 'get-failed' );
+                    $aResult = array('success' => false, 'is_logged' => true, 'error' => 'get-failed' );
 
                 $_mHandler->quit();
                 exit(json_encode($aResult));
             
             } else 
-                exit(json_encode(array('success' => false, 'error' => 'login-failed')));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'download':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
                 
                 // Create the temporaly file for download file from ftp
-                $sTempFile = tempnam(sys_get_temp_dir(), $_SESSION['gfWebRepo']['user']['username']);
+                $sTempFile = tempnam(sys_get_temp_dir(), $_SESSION['webRepo']['user']['username']);
 
                 $_mHandler->chdir($sPath);
                 $bResult = $_mHandler->get($sTempFile, $_POST['filename']);
@@ -197,14 +197,14 @@ if(isset($_POST['cmd'])){
                 exit(0);
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'read':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $mBuffer = '';
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
@@ -212,27 +212,27 @@ if(isset($_POST['cmd'])){
                 $bResult = $_mHandler->read($_POST['filename'], $mBuffer);
                 
                 $_mHandler->quit();
-                exit(json_encode(array('success' => $bResult, 'buffer' => $mBuffer, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
+                exit(json_encode(array('success' => $bResult, 'buffer' => $mBuffer, 'is_logged' => true, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
         case 'write':
-            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['gfWebRepo']['user']['username'], $_SESSION['gfWebRepo']['user']['password']);        
+            $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);        
 
-            if($_mHandler->isConnected()){
+            if($_mHandler->isConnected() && $_mHandler->isLogged()){
                 $sPath = isset($_POST['path']) ? $_POST['path'] : '/';
 
                 $_mHandler->chdir($sPath);
                 $bResult = $_mHandler->write($_POST['filename'], $_POST['buffer']);
                 
                 $_mHandler->quit();
-                exit(json_encode(array('success' => $bResult, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
+                exit(json_encode(array('success' => $bResult, 'is_logged' => true, 'error' => $bResult ? $_mHandler->getLastError() : '' )));
             
             } else 
-                exit(json_encode(array('success' => false)));
+                exit(json_encode(array('success' => false, 'is_logged' => $_mHandler->isLogged())));
             
             break;
 
