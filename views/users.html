@@ -1,7 +1,7 @@
 <div class="container-fluid mt-3">
  <div class="col-12" ng-show="mode == 'list'">
   <div>
-   <a ng-click="addUser()" class="btn btn-success text-light float-right mt-1">
+   <a ng-click="openAdduser()" class="btn btn-success text-light float-right mt-1">
     <i class="fas fa-plus"></i> Nuovo utente
    </a>
    <a ng-click="mode = 'import'" class="btn btn-primary text-light float-right mt-1 mr-2">
@@ -18,7 +18,7 @@
   <div class="row">
    <div class="col-xs-6 col-sm-8  my-2">
     Mostra 
-    <label>
+    <label class=" mx-1">
      <select class="form-control" ng-model="numOfEntry">
       <option ng-value="20">20</option>
       <option ng-value="30">30</option>
@@ -39,32 +39,52 @@
    </div>
   </div>
  
+  <div class="row justify-content-end mt-2"  ng-show="selectedUsers.length > 0">
+   <div class="col-12 col-md-6 text-dark pt-1 pl-4 my-2">Hai selezionato <b>{{selectedUsers.length}}</b> utent{{selectedUsers.length > 1 | iif: 'i' : 'e'}}!</div>
+   <div class="col-12 col-md-6 text-right my-2">
+    <button type="button" class="btn btn-primary btn-sm" title="Modifica utenti" data-toggle="modal" data-target="#editSelectedUsersWindow">
+     <i class="fa fa-pencil-alt mr-1"></i> Modifica utenti
+    </button>
+    <button type="button" class="btn btn-warning btn-sm" title="Reset password" data-toggle="modal" data-target="#resetPasswordSelectedUsersWindow">
+     <i class="fa-solid fa-arrows-rotate mr-1"></i> Resetta la password
+    </button>
+    <button type="button" class="btn btn-danger btn-sm" title="Elimina utenti" data-toggle="modal" data-target="#deleteSelectedUsersWindow">
+     <i class="fas fa-trash mr-1"></i> Elimina utenti
+    </button>
+   </div>
+   <hr class="my-4" />
+  </div>
+
   <div class="row">
    <table class="table table-sm table-striped table-hover">
-    <tr class="d-flex">
-     <th class="flex-shink-0 text-center">
-      <input class="" type="checkbox"  ng-checked="selectedWorkes.length == filtered.length" ng-click="selectDeselectAllWorker()" />
-     </th>
-     <th class="col">Nome utente</th>
-     <th class="col-3">Directory</th>
-     <th class="col-2">Ruolo</th>
-     <th class="col-2">Commenti</th>
-     <th class="col-1"></th>
-    </tr>
-    <tr class="d-flex" ng-repeat="(key, user) in filtered = (users | filter:search) | startFrom:(currentPage-1)*numOfEntry | limitTo:numOfEntry" ng-class="{'table-success': user.IsAdmin == 1}">
-     <td class="flex-shink-0 py-0 text-center">
-      <input class="" type="checkbox" name="selectedWorkes[]" value="{{user.id}}" ng-checked="selectedWorkes.indexOf(user.id) > -1" ng-click="toggleSelectionWorker(user.id)" />
+    <thead class="thead-light">
+     <tr class="d-flex">
+      <th class="flex-shink-0 text-center">
+       <input type="checkbox" ng-checked="selectedUsers.length == filtered.length" ng-click="selectDeselectAllUser()" />
+      </th>
+      <th class="col">Utente</th>
+      <th class="col-3">Nome</th>
+      <th class="col-2">Ruolo</th>
+      <th class="col-2">Commenti</th>
+      <th class="col-1"></th>
+     </tr>
+    </thead>
+    <tr class="d-flex" ng-repeat="(key, user) in filtered = (users | filter:search) | startFrom:(currentPage-1)*numOfEntry | limitTo:numOfEntry" ng-class="{'table-success': user.is_admin == 1}">
+     <td class="flex-shink-0 text-center">
+      <input type="checkbox" name="selectedUsers[]" value="{{user.user}}" ng-checked="selectedUsers.indexOf(user.user) > -1" ng-click="toggleSelectionUser(user.user)" />
      </td>
-
-     <td class="col">{{user.User}}</td>
-     <td class="col-3">{{user.Dir}}</td>
-     <td class="col-2">{{user.IsAdmin == 1 ? 'Amministratore' : 'Utente' }}</td>
+     <td class="col" ng-click="toggleSelectionUser(user.user)">{{user.user}}</td>
+     <td class="col-3">{{user.name}}</td>
+     <td class="col-2">{{user.is_admin == 1 ? 'Amministratore' : 'Utente' }}</td>
      <td class="col-2">{{user.comment}}</td>
-     <td class="col-1 px-0">
-      <button class="btn btn-primary btn-sm mx-1 d-none d-md-inline-block" title="Modifica utente" ng-click="editUser(user.id)">
+     <td class="flex-shink-1">
+      <button class="btn btn-primary btn-sm mr-1" title="Modifica utente" ng-click="openEditUser(user.user)">
        <i class="fa fa-pencil-alt"></i>
       </button>
-      <button class="btn btn-danger  btn-sm mx-1 d-none d-md-inline-block" title="Elimina utente" ng-click="openDeleteUser(user.id)" data-toggle="modal" data-target="#deleteWindow">
+      <button class="btn btn-warning btn-sm mr-1" title="Reset password" ng-click="openResetPassword(user.user)" data-toggle="modal" data-target="#resetPasswordWindow">
+       <i class="fa-solid fa-arrows-rotate"></i>
+      </button>
+      <button class="btn btn-danger btn-sm" title="Elimina utente" ng-click="openDeleteUser(user.user)" data-toggle="modal" data-target="#deleteWindow">
        <i class="fa fa-trash-alt"></i>
       </button>
      </td>
@@ -90,66 +110,122 @@
 
  <div class="col-12" ng-show="mode == 'edit'">
   <div>
-   <h2>
-    <a href="#" class="my-2" ng-click="backList()">Lista utenti</a> &#187;
-    <span class="font-weight-light" ng-show="auxUser.id == null">Inserisci un nuovo utente</span>
-    <span class="font-weight-light" ng-show="auxUser.id != null">Modifica {{auxUser.realname}}</span>
-   </h2>
+   <h3>
+    <a href="" class="my-2" ng-click="mode = 'list'">
+     <i class="fa fa-users mr-2"></i> Utenti
+     </a>
+    &#187;
+    <span class="font-weight-light">{{ auxUser.is_new ? 'Inserisci un nuovo utente' : 'Modifica '+ auxUser.user}}</span>
+   </h3>
    <hr class="my-4">
   </div>
 
   <form class="needs-validation" novalidate ng-submit="saveUser()">
    <div class="form-row">
-    <div class="col-12 col-md-6 mb-3">
+    <div class="col-12 col-md-4 mb-3">
      <label>Nome utente</label>
-     <input type="text" class="form-control" ng-model="auxUser.username" placeholder="inserisci il nome utente" ng-disabled="auxUser.id != null" />
+     <input type="text" class="form-control" ng-model="auxUser.user" placeholder="inserisci il nome utente" ng-disabled="!auxUser.is_new" />
      <div class="invalid-feedback">Il nome utente &egrave; necessario!</div>
     </div>   
    
-    <div class="col-12 col-md-6 mb-3">
-     <label>Nome e cognome</label>
-     <input type="text" class="form-control" ng-model="auxUser.realname" placeholder="inserisci il nome reale" />
+    <div class="col-12 col-md-4 mb-3">
+     <label>Nome</label>
+     <input type="text" class="form-control" ng-model="auxUser.name" placeholder="inserisci il nome" />
      <div class="invalid-feedback">Il nominativo &egrave; necessario!</div>
+    </div>
+    <div class="col-12 col-md-4 mb-3">
+     <label>Email</label>
+     <input type="email" class="form-control" ng-model="auxUser.email" placeholder="inserisci l'email" />
     </div>
    </div>
 
    <div class="form-row">
     <div class="col-12 col-md-6 mb-3">
-     <label>Ruolo</label>
-     <select class="form-control" ng-model="auxUser.usertype" ng-options="usertype.id as usertype.title for usertype in usertypes" required ></select>
-     <div class="invalid-feedback">Il ruolo &egrave; necessaria!</div>
+     <label>{{!auxUser.is_new ? 'Nuova' : ''}} Password</label>
+     <div class="input-group">
+      <input type="password" class="form-control" ng-model="auxUser.password" id="password" placeholder="inserisci la password" aria-label="inserisci la password" ng-required="auxUser.is_new"/>
+      <div class="input-group-append">
+       <button class="btn btn-outline-secondary" type="button" ng-click="togglePassword('password')">
+        <i class="fas" ng-class="{'fa-eye': !passwordShowed, 'fa-eye-slash': passwordShowed}"></i>
+       </button>
+      </div>
+     </div>
+     <div class="invalid-feedback">la password &egrave; necessaria!</div>
     </div>
-    <div class="col-12 col-md-6 mb-3">
-     <label>Tipo di accesso</label>
-     <select class="form-control" ng-model="auxUser.login_type" required >
-      <option value="DEFAULT">Email/Password</option>
-      <option value="GOOGLE">Google Auth</option>
-     </select>
-     <div class="invalid-feedback">La modalit&agrave; di accesso &egrave; necessaria!</div>
+    <div class="col-6 col-md-3 mb-3">
+     <label>Stato</label>
+
+     <div class="custom-control custom-switch mt-2">
+      <input type="checkbox" class="custom-control-input" id="status" ng-model="auxUser.status" />
+      <label class="custom-control-label" for="status" ng-class="{'text-muted': !auxUser.status}">
+        {{auxUser.status ? 'Attivo' : 'Disattivato'}}
+      </label>
+     </div>
+    </div>
+    <div class="col-6 col-md-3 mb-3">
+     <label>Ruolo</label>
+
+     <div class="custom-control custom-switch mt-2">
+      <input type="checkbox" class="custom-control-input" id="is_admin" ng-model="auxUser.is_admin" />
+      <label class="custom-control-label" for="is_admin">
+        Amministratore
+      </label>
+     </div>
     </div>
    </div>
    
-   <div class="form-row" ng-show="auxUser.login_type == 'DEFAULT'">
+   <div class="form-row">
+    <div class="col-6 col-md-3 mb-3">
+     <label>User ID</label>
+     <input type="text" class="form-control" ng-model="auxUser.uid" placeholder="inserisci il UID"/>
+    </div>
+
+    <div class="col-6 col-md-3 mb-3">
+     <label>Group ID</label>
+     <input type="text" class="form-control" ng-model="auxUser.gid" placeholder="inserisci il GID"/>
+    </div>
+
+    <div class="col-6 col-md-3 mb-3">
+     <label>Upload Bandwidth</label>
+     <input type="text" class="form-control" ng-model="auxUser.ul_bandwidth" placeholder="inserisci il limite di banda in upload"/>
+    </div>
+
+    <div class="col-6 col-md-3 mb-3">
+     <label>Download Bandwidth</label>
+     <input type="text" class="form-control" ng-model="auxUser.dl_bandwidth" placeholder="inserisci il limite di banda in download"/>
+    </div>
+  </div>
+
+   <div class="form-row">
     <div class="col-12 col-md-6 mb-3">
-     <label>Password</label>
-     <input type="password" class="form-control" id="passwordNew" ng-model="auxUser.passwordNew" ng-minlength="8" placeholder="la password deve lunga almeno 8 caratteri" ng-required="auxUser.id == null" />
-     <div class="invalid-feedback">La password deve essere lunga almeno 8 caratteri</div>
+     <label>Accesso IP</label>
+     <input type="text" class="form-control" ng-model="auxUser.ipaccess" placeholder="inserisci un indirizzo IP di accesso ('*' se qualunque IP)"/>
+    </div>
+
+    <div class="col-6 col-md-3 mb-3">
+     <label>Quota (memoria)</label>
+     <input type="text" class="form-control" ng-model="auxUser.quota_size" placeholder="inserisci il limite di spazio di memoria (vuoto per nessun limite)"/>
+    </div>
+
+    <div class="col-6 col-md-3 mb-3">
+     <label>Quota (file)</label>
+     <input type="text" class="form-control" ng-model="auxUser.quota_size" placeholder="inserisci il limite di numero file (vuoto per nessun limite)"/>
+    </div>
    </div>
 
-    <div class="col-12 col-md-6 mb-3">
-     <label>Conferma password</label>
-     <input type="password" class="form-control" ng-model="auxUser.passwordConfirm" ng-minlength="8" pw-check="passwordNew" placeholder="reinserire la password" ng-required="auxUser.id == null" />
-     <div class="invalid-feedback">La password di controllo non coincide con la password</div>
-    </div>
+   <div class="form-row">
+    <div class="col-12 mb-3">
+    <textarea ng-model="auxUser.comment" class="form-control" rows="3" placeholder="Note sull'utente" aria-label="Note sull'utente"></textarea>
    </div>
-   
+   </div>
+
    <div class="form-row text-right d-block">
-    <button type="button" class="btn btn-secondary" ng-click="backList()">
-     <span class="fas fa-trash-alt"></span> Annulla
+    <button type="button" class="btn btn-secondary mr-2" ng-click="mode = 'list'">
+     <i class="fas fa-times mr-2"></i> Annulla
     </button>
     
-    <button type="submit" class="btn btn-success ml-3" ng-disabled="userForm.$invalid">
-     <span class="fas fa-check"></span> Salva
+    <button type="submit" class="btn btn-success" ng-disabled="userForm.$invalid">
+     <i class="fas fa-check mr-2"></i> Salva
     </button>
    </div> 
    
@@ -158,74 +234,83 @@
 </div>
 
  <div class="col-12" ng-show="mode == 'import'">
+  <input type="file" id="listUsersFile" class="d-none" ng-model="importXMLInvoice" onchange="angular.element(this).scope().fileUploadhHandler(event)" accept=".xlsx,.xls,.cvs" />
   <div>
-   <a ng-click="importUsers()" class="btn btn-success text-light float-right mt-1">
-    <i class="fa-solid fa-file-arrow-up"></i> Importa file
-   </a>
-
    <h3>
-    <a ng-click="mode = 'list'">
-     <i class="fa fa-users mr-2"></i>
-     Utenti
-    </a>
+    <a href="" class="my-2" ng-click="mode = 'list'">
+     <i class="fa fa-users mr-2"></i> Utenti
+     </a>
     &#187;
     Importa elenco utenti
    </h3>
    <hr class="my-4">
   </div> 
 
-  <div class="row" ng-show="false">
-   <table class="table table-sm table-striped table-hover">
-    <tr class="d-flex">
-     <th class="flex-shink-0 text-center">
-      <input class="" type="checkbox"  ng-checked="selectedWorkes.length == filtered.length" ng-click="selectDeselectAllWorker()" />
-     </th>
-     <th class="col">Nome utente</th>
-     <th class="col-3">Directory</th>
-     <th class="col-2">Ruolo</th>
-     <th class="col-2">Commenti</th>
-     <th class="col-1"></th>
-    </tr>
-    <tr class="d-flex" ng-repeat="(key, user) in filtered = (users | filter:search) | startFrom:(currentPage-1)*numOfEntry | limitTo:numOfEntry" ng-class="{'table-success': user.IsAdmin == 1}">
-     <td class="flex-shink-0 py-0 text-center">
-      <input class="" type="checkbox" name="selectedWorkes[]" value="{{user.id}}" ng-checked="selectedWorkes.indexOf(user.id) > -1" ng-click="toggleSelectionWorker(user.id)" />
-     </td>
+  <div class="row justify-content-end"  ng-show="importUsers != null && selectedImportUsers.length > 0">
+   <div class="col-12 col-md-6 text-dark pt-1 pl-4 my-2">Hai selezionato <b>{{selectedImportUsers.length}}</b> utent{{selectedImportUsers.length > 1 | iif: 'i' : 'e'}}!</div>
+   <div class="col-12 col-md-6 text-right my-2">
+    <div class="btn-group mr-2">
+     <button type="button" class="btn btn-success" title="Registra utenti" ng-click="registImportUsers()">
+      <i class="fas fa-cloud-arrow-up mr-2"></i> Registra {{selectedImportUsers.length == importUsers.length ? 'tutti gli utenti': 'gli utenti selezionati'}}
+     </button>
+    </div>
 
-     <td class="col">{{user.User}}</td>
-     <td class="col-3">{{user.Dir}}</td>
-     <td class="col-2">{{user.IsAdmin == 1 ? 'Amministratore' : 'Utente' }}</td>
-     <td class="col-2">{{user.comment}}</td>
-     <td class="col-1 px-0">
-      <button class="btn btn-primary btn-sm mx-1 d-none d-md-inline-block" title="Modifica utente" ng-click="editUser(user.id)">
-       <i class="fa fa-pencil-alt"></i>
-      </button>
-      <button class="btn btn-danger  btn-sm mx-1 d-none d-md-inline-block" title="Elimina utente" ng-click="openDeleteUser(user.id)" data-toggle="modal" data-target="#deleteWindow">
-       <i class="fa fa-trash-alt"></i>
-      </button>
-     </td>
-    </tr>
-    <tr>
-     <td colspan="4" class="text-center" ng-show="filtered.length/numOfEntry > 1">
-      <ul class="pagination justify-content-center">
-        <li class="page-item" ng-class="{'disabled': currentPage == 1}">
-         <a href="#" class="page-link" ng-click="previousPage()">&laquo;</a>
-        </li>
-        <li ng-repeat="n in [] | range:1:Math.ceil(filtered.length/numOfEntry)" class="{{n == currentPage | iif : 'active' : ''}}">
-         <a href="#" class="page-link" ng-click="setPage(n)">{{n}}</a>
-        </li>
-        <li class="page-item" ng-class="{'disabled': currentPage == Math.ceil(filtered.length/numOfEntry)}">
-         <a href="#" class="page-link" ng-click="nextPage(filtered.length)">&raquo;</a>
-        </li>
-      </ul>
-     </td>
-    </tr>
-   </table>
+    <button class="btn btn-sm btn-outline-dark" data-toggle="modal" data-target="#printBadgeWindow" title="Stampa bagde" ng-show="selectedWorkes.length > 0">
+     <i class="fa fa-print mr-1"></i> Stampa badge
+    </button>
+   </div>
+   <hr class="my-4" />
+  </div>
+  <div class="row" ng-show="importUsers != null">
+   <div class="col-12">
+    <table class="table table-striped table-hover table-sm small w-100 my-3">
+     <thead class="thead-dark">
+      <tr class="d-flex">
+       <th class="flex-shink-0 text-center">
+        <input class="" type="checkbox"  ng-checked="selectedImportUsers.length == importUsers.length" ng-click="selectDeselectAllImportUser()" />
+       </th>
+       <th class="col">Nome utente</th>
+       <th class="col-3">Nome</th>
+       <th class="col-1">Admin</th>
+       <th class="col-1">UID/GID</th>
+       <th class="col-2">Commenti</th>
+       <th class="col-2">Stato</th>
+      </tr>
+     </thead>
+     <tr class="d-flex" ng-repeat="user in importUsers" ng-class="{'table-warning': user.is_admin == 1}">
+      <td class="flex-shink-0 py-0 text-center">
+       <input class="" type="checkbox" name="selectedImportUsers[]" value="{{user.user}}" ng-checked="selectedImportUsers.indexOf(user.user) > -1" ng-click="toggleSelectionImportUser(user.user)" />
+      </td>
+
+      <td class="col">{{user.user}}</td>
+      <td class="col-3">{{user.name}}</td>
+      <td class="col-1">{{user.is_admin == 1 ? 'SI' : 'NO' }}</td>
+      <td class="col-1">{{user.uid}} / {{user.gid}}</td>
+      <td class="col-2">{{user.comment}}</td>
+      <td class="col-2 h6">
+       <span class="badge badge-primary py-1 px-2" ng-show="user.serverStatus == 'loaded'">
+        <i class="fas fa-cloud-arrow-up mr-1"></i> Pronto 
+       </span>
+       <span class="badge badge-warning py-1 px-2" ng-show="user.serverStatus == 'wating'">
+        <i class="fas fa-spinner mr-1"></i> Registrazione in corso 
+       </span>
+       <span class="badge badge-success py-1 px-2" ng-show="user.serverStatus == 'ok'">
+        <i class="fas fa-check mr-1"></i> Registrato 
+       </span>
+
+       <span class="badge badge-danger py-1 px-2" ng-show="user.serverStatus != 'loaded' && user.serverStatus != 'wating' && user.serverStatus != 'ok'">
+        <i class="fas fa-times mr-1"></i> {{user.serverStatus | erroreMessage}} 
+       </span>
+      </td>
+     </tr>
+    </table>
+   </div>
   </div>
 
-  <div class="row" ng-show="electronicDocument == null || true">
-   <div class="col-12 p-2" ondrop="angular.element(this).scope().xmlUploadhHandler(event)" ondragover="event.preventDefault()">
+  <div class="row" ng-show="importUsers == null">
+   <div class="col-12 p-2" ondrop="angular.element(this).scope().fileUploadhHandler(event)" ondragover="event.preventDefault()">
     <div class="card mt-2 p-5 d-block">
-     <div class="card-body bg-white my-5" onclick="$('#xmlInvoiceFile').trigger('click')" title="Importa file in formato CSV o XLS" aria-label="Importa file in formato CSV o XLS"> 
+     <div class="card-body bg-white my-5" onclick="$('#listUsersFile').trigger('click')" title="Importa file in formato CSV o XLS" aria-label="Importa file in formato CSV o XLS"> 
       <h6 class="card-title text-center font-weight-bold">
        <i class="fas fa-cloud-upload-alt fa-2x mr-4"></i> Trascina il file CSV o XLS oppure Clicca qui per caricare l'elenco degli utenti
       </h6>
@@ -234,6 +319,264 @@
    </div>
   </div>
 
+ </div>
+
+ <div id="deleteWindow" class="modal fade" tabindex="-1" aria-labelledby="deleteLabel" aria-hidden="true">
+  <div class="modal-dialog">
+   <div class="modal-content">
+    <div class="modal-header">
+     <h5 class="modal-title" id="deleteLabel">Conferma cancellazione utente</h5>
+     <button type="button" class="close" data-dismiss="modal" aria-label="Chiudi">
+      <span aria-hidden="true">&times;</span>
+     </button>
+    </div>
+    <div class="modal-body">
+     <div class="row my-1">
+      <div class="col-12 text-center">
+       <h5>Sei sicuro di voler eliminare l'utente <b>{{auxUser.user}}</b> ({{auxUser.name}})?</h5>
+      </div>  
+      <div class="col-12">
+       <div class="custom-control custom-switch">
+        <input type="checkbox" class="custom-control-input" id="delete_files_selected_users" ng-model="deleteFiles" />
+        <label class="custom-control-label" for="delete_files_selected_users" ng-class="{'text-muted' : !deleteFiles, 'text-danger' : deleteFiles}"> 
+         Elimina tutti i file e le cartelle
+         <i class="fas fa-exclamation-triangle text-warning ml-2" aria-hidden="true" ng-show="deleteFiles"></i> 
+        </label>
+       </div>
+      </div>  
+     </div>
+    </div>
+ 
+    <div class="modal-footer">
+     <button class="btn btn-danger mr-2" ng-click="deleteUser()">
+      <i class="fa fa-trash mr-2" aria-hidden="true"></i> Elimina utente
+     </button>
+     <button class="btn btn-secondary" data-dismiss="modal">
+      <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+     </button>
+    </div>
+   </div>
+  </div>
+ </div>
+
+ <div id="resetPasswordWindow" class="modal fade" tabindex="-1" aria-labelledby="resetPasswordLabel" aria-hidden="true">
+  <div class="modal-dialog">
+   <div class="modal-content">
+    <div class="modal-header">
+     <h5 class="modal-title" id="resetPasswordLabel">Conferma reset della password</h5>
+     <button type="button" class="close" data-dismiss="modal" aria-label="Chiudi">
+      <span aria-hidden="true">&times;</span>
+     </button>
+    </div>
+    <div class="modal-body">
+     <div class="row my-1">
+      <div class="col-12 text-center">
+       <h5>Sei sicuro di voler resettare la password del'utente <b>{{auxUser.user}}</b> ({{auxUser.name}})?</h5>
+      </div>
+      <div class="col-12">
+       <p>La password verr&agrave; reimpostata uguale al nome utente e l'utente avr&agrave; l'obbligo di cambiarla al primo accesso</p>
+      </div>
+     </div>
+    </div>
+
+    <div class="modal-footer">
+     <button class="btn btn-warning mr-2" ng-click="resetPassword()">
+      <i class="fa-solid fa-arrows-rotate mr-2" aria-hidden="true"></i> Reseta password
+     </button>
+     <button class="btn btn-secondary" data-dismiss="modal">
+      <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+     </button>
+    </div>
+   </div>
+  </div>
+ </div>
+
+ <div id="deleteSelectedUsersWindow" class="modal fade" tabindex="-1" aria-labelledby="deleteSelectedUsersLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+   <div class="modal-content">
+    <div class="modal-header">
+     <h5 class="modal-title" id="deleteSelectedUsersLabel">Conferma cancellazione utenti</h5>
+     <button type="button" class="close" data-dismiss="modal" aria-label="Chiudi">
+      <span aria-hidden="true">&times;</span>
+     </button>
+    </div>
+    <div class="modal-body">
+     <div class="row my-1">
+      <div class="col-12 text-center">
+       <h5>Sei sicuro di voler eliminare gli utenti?</h5>
+      </div>
+     </div>
+     <ul class="row list-unstyled mb-4">
+      <li class="col-6" ng-repeat="user in selectedUsers"><b>{{user}}</b></li>
+     </ul>  
+     <div class="custom-control custom-switch">
+      <input type="checkbox" class="custom-control-input" id="delete_files_selected_users" ng-model="deleteFiles" />
+      <label class="custom-control-label" for="delete_files_selected_users" ng-class="{'text-muted' : !deleteFiles, 'text-danger' : deleteFiles}"> 
+       Elimina tutti i file e le cartelle
+       <i class="fas fa-exclamation-triangle text-warning ml-2" aria-hidden="true" ng-show="deleteFiles"></i> 
+      </label>
+     </div>
+    </div>
+
+    <div class="modal-footer">
+     <button class="btn btn-danger mr-2" ng-click="deleteSelectedUsers()">
+      <i class="fa fa-trash mr-2" aria-hidden="true"></i> Elimina utenti
+     </button>
+     <button class="btn btn-secondary" data-dismiss="modal">
+      <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+     </button>
+    </div>
+   </div>
+  </div>
+ </div>
+
+ <div id="editSelectedUsersWindow" class="modal fade" tabindex="-1" aria-labelledby="editSelectedUsersLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+   <div class="modal-content">
+    <div class="modal-header">
+     <h5 class="modal-title" id="editSelectedUsersLabel">Modifica massiva utenti</h5>
+     <button type="button" class="close" data-dismiss="modal" aria-label="Chiudi">
+      <span aria-hidden="true">&times;</span>
+     </button>
+    </div>
+
+    <form class="needs-validation" novalidate ng-submit="editSelectedUser()">
+     <div class="modal-body">
+      <div class="row">
+       <div class="col-12">
+        <strong>Utenti selezionati</strong>
+        <p>
+         <span class="ml-3" ng-repeat="user in selectedUsers">{{user}};</span>
+        </p>
+        <hr class="mb-4">
+       </div>
+      </div>
+
+      <div class="form-row">
+       <div class="col-12 col-md-6 mb-3">
+        <label>Reset Password</label>
+        <div class="custom-control custom-switch mt-2">
+         <input type="checkbox" class="custom-control-input" id="resetPassword" ng-model="auxMassiveData.resetPassword" />
+         <label class="custom-control-label" for="resetPassword" ng-class="{'text-muted': !auxMassiveData.resetPassword}">
+           {{auxMassiveData.resetPassword ? 'Resetta' : 'Invariata'}}
+         </label>
+        </div>
+       </div>
+       <div class="col-6 col-md-3 mb-3">
+        <label>Stato</label>
+
+        <div class="custom-control custom-switch mt-2">
+         <input type="checkbox" class="custom-control-input" id="status" ng-model="auxUser.status" />
+         <label class="custom-control-label" for="status" ng-class="{'text-muted': !auxUser.status}">
+           {{auxUser.status ? 'Attivo' : 'Disattivato'}}
+         </label>
+        </div>
+       </div>
+       <div class="col-6 col-md-3 mb-3">
+        <label>Ruolo</label>
+
+        <div class="custom-control custom-switch mt-2">
+         <input type="checkbox" class="custom-control-input" id="is_admin" ng-model="auxMassiveData.is_admin" />
+         <label class="custom-control-label" for="is_admin">
+           Amministratore
+         </label>
+        </div>
+       </div>
+      </div>
+      
+      <div class="form-row">
+       <div class="col-6 col-md-3 mb-3">
+        <label>User ID</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.uid" placeholder="inserisci il UID"/>
+       </div>
+
+       <div class="col-6 col-md-3 mb-3">
+        <label>Group ID</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.gid" placeholder="inserisci il GID"/>
+       </div>
+
+       <div class="col-6 col-md-3 mb-3">
+        <label>Upload Bandwidth</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.ul_bandwidth" placeholder="inserisci il limite di banda in upload"/>
+       </div>
+
+       <div class="col-6 col-md-3 mb-3">
+        <label>Download Bandwidth</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.dl_bandwidth" placeholder="inserisci il limite di banda in download"/>
+       </div>
+     </div>
+
+      <div class="form-row">
+       <div class="col-12 col-md-6 mb-3">
+        <label>Accesso IP</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.ipaccess" placeholder="inserisci un indirizzo IP di accesso ('*' se qualunque IP)"/>
+       </div>
+
+       <div class="col-6 col-md-3 mb-3">
+        <label>Quota (memoria)</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.quota_size" placeholder="inserisci il limite di spazio di memoria (vuoto per nessun limite)"/>
+       </div>
+
+       <div class="col-6 col-md-3 mb-3">
+        <label>Quota (file)</label>
+        <input type="text" class="form-control" ng-model="auxMassiveData.quota_size" placeholder="inserisci il limite di numero file (vuoto per nessun limite)"/>
+       </div>
+      </div>
+
+      <div class="form-row">
+       <div class="col-12 mb-3">
+       <textarea ng-model="auxMassiveData.comment" class="form-control" rows="3" placeholder="Note sugli utenti" aria-label="Note sugli utenti"></textarea>
+      </div>
+      </div>
+     </div>
+
+     <div class="modal-footer">
+      <button type="submit" class="btn btn-primary mr-2" ng-click="editSelectedUsers()">
+       <i class="fa fa-pencil-alt mr-2" aria-hidden="true"></i> Modifica utenti
+      </button>
+      <button type="button" class="btn btn-secondary" data-dismiss="modal">
+       <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+      </button>
+     </div>
+
+    </form>
+   </div>
+  </div>
+ </div>
+
+ <div id="resetPasswordSelectedUsersWindow" class="modal fade" tabindex="-1" aria-labelledby="resetPasswordSelectedUsersLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+   <div class="modal-content">
+    <div class="modal-header">
+     <h5 class="modal-title" id="resetPasswordSelectedUsersLabel">Conferma reset della password</h5>
+     <button type="button" class="close" data-dismiss="modal" aria-label="Chiudi">
+      <span aria-hidden="true">&times;</span>
+     </button>
+    </div>
+    <div class="modal-body">
+     <div class="row my-1">
+      <div class="col-12 text-center">
+       <h5>Sei sicuro di voler resettare la password a questi utenti?</h5>
+      </div>
+      <div class="col-12">
+       <p>La password verr&agrave; reimpostata uguale al nome utente e l'utente avr&agrave; l'obbligo di cambiarla al primo accesso</p>
+      </div>
+     </div>
+     <ul class="row list-unstyled mb-4">
+      <li class="col-6" ng-repeat="user in selectedUsers"><b>{{user}}</b></li>
+     </ul>  
+    </div>
+
+    <div class="modal-footer">
+     <button class="btn btn-warning mr-2" ng-click="resetPasswordSelectedUsers()">
+      <i class="fa-solid fa-arrows-rotate mr-2" aria-hidden="true"></i> Reseta password
+     </button>
+     <button class="btn btn-secondary" data-dismiss="modal">
+      <i class="fa fa-undo mr-2" aria-hidden="true"></i> Annulla
+     </button>
+    </div>
+   </div>
+  </div>
  </div>
 
 </div>

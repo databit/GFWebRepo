@@ -1,34 +1,53 @@
- <div class='container'>
-  <div class="row">
-   <div class="col-md-12">
-    <h1 class="ser-title">Profilo utente</h1>
-    <hr class="botm-line">
+<div class="container-fluid mt-3">
+ <div>
+  <h3>
+   <i class="fa fa-user mr-2"></i> Profilo utente
+  </h3>
+  <hr class="my-4">
+ </div>
+
+ <form class="needs-validation" id="profileForm" novalidate ng-submit="editProfile()">
+  <div class="form-row">
+   <div class="col-12 col-md-6 mb-3">
+    <label>Nome utente</label>
+    <input type="text" class="form-control" ng-model="profile.user" placeholder="inserisci il nome utente" disabled />
+   </div>   
+  
+   <div class="col-12 col-md-6 mb-3">
+    <label>Nome</label>
+    <input type="text" class="form-control" ng-model="profile.name" placeholder="inserisci il nome" required />
+    <div class="invalid-feedback">Il nominativo &egrave; necessario!</div>
+   </div>
+  </div>
+
+  <div class="form-row">
+   <div class="col-12 col-md-6 mb-3">
+    <label>Email</label>
+    <input type="email" class="form-control" ng-model="profile.email" placeholder="inserisci l'email" required />
+   </div>
+   <div class="col-12 col-md-6 mb-3">
+    <label>Nuova Password</label>
+    <div class="input-group">
+     <input type="password" class="form-control" ng-model="profile.password" id="password" placeholder="inserisci la password" aria-label="inserisci la password" />
+     <div class="input-group-append">
+      <button class="btn btn-outline-secondary" type="button" ng-click="togglePassword('password')">
+       <i class="fas" ng-class="{'fa-eye': !passwordShowed, 'fa-eye-slash': passwordShowed}"></i>
+      </button>
+     </div>
+    </div>
+    <div class="invalid-feedback">la password &egrave; necessaria!</div>
    </div>
   </div>
   
-  <div class='section'>
-   <form class='form-horizontal' role='form' ng-submit='editProfile()'>
-    <div class='form-group'>
-     <label class='col-md-2'>Nome utente</label>
-     <div class='col-md-4'>
-      <input type='email' class='form-control' ng-model='profile.User' placeholder='inserisci la email' required disabled />
-     </div>
-    </div>
-    <div class='form-group'>
-     <label class='col-md-2'>Password</label>
-     <div class='col-md-4 has-feedback'>
-      <input type='password' class='form-control' id='passwordNew' ng-model='profile.passwordNew' ng-minlength='8' placeholder='la password deve lunga almeno 8 caratteri' />
-      <span class="glyphicon glyphicon-warning-sign form-control-feedback"></span>
-    </div>
-     <label class='col-md-2'>Conferma password</label>
-     <div class='col-md-4 has-feedback'>
-      <input type='password' class='form-control' ng-model='profile.passwordConfirm' ng-minlength='8' pw-check='passwordNew' placeholder='reinserire la password' />
-      <span class="glyphicon glyphicon-warning-sign form-control-feedback"></span>
-     </div>
-    </div>
-    <div class='form-group'>
-     <input type='submit' class='btn btn-success pull-right' value='Salva' />
-    </div>
-   </form>
-  </div>  
- </div>
+
+  <div class="form-row text-right d-block">
+   <a href="#!/explore" class="btn btn-secondary mr-2">
+    <i class="fas fa-times mr-2"></i> Annulla
+   </a>
+   
+   <button type="submit" class="btn btn-success" ng-disabled="profileForm.$invalid">
+    <i class="fas fa-check mr-2"></i> Salva
+   </button>
+  </div> 
+ </form>
+</div> 

@@ -32,24 +32,22 @@ webRepoApp.config(function($httpProvider, $routeProvider, $locationProvider) {
     //Remove the header used to identify ajax call  that would prevent CORS from working
     delete $httpProvider.defaults.headers.common['X-Requested-With'];
     
-    //$locationProvider.html5Mode(true);
-
-
+    /*$locationProvider
+        .html5Mode(false)
+        .hashPrefix('!');*/
 })
 
 webRepoApp.run(function($rootScope) {
-    $rootScope.loading = false;
-});
-
-/** CONTROLLERS **/
-webRepoApp.controller('navControll', function($scope, $rootScope, $http, $location, $sce, FileUploader) { 
-    $rootScope.alertWindow = {type:'', message: '', visible: false};
+    $rootScope.window =  window;
+    $rootScope.Math =  window.Math;
     $rootScope.logged = false;
     $rootScope.username = null;
-    $rootScope.ftpUploader = new FileUploader({ url: 'ws/explore.php', alias: 'upload'});
+    $rootScope.alertWindow = {type:'', message: '', visible: false};
+    $rootScope.loading = false;
+    $rootScope.passwordShowed = false;
 
     //Tools
-    $rootScope._showAlert = function(typeMessage, icon, messageText) {
+    $rootScope.showAlert = function(typeMessage, icon, messageText) {
         $rootScope.alertWindow = {type:'alert-'+ typeMessage, icon: icon, message: messageText, visible: true};
 
         $('#alertWindow')
@@ -57,25 +55,60 @@ webRepoApp.controller('navControll', function($scope, $rootScope, $http, $locati
             .delay(5000)
             .slideUp("slow", "easeOutBounce", function(){ $rootScope.alertWindow.visible = false; });
     };
+
+    $rootScope.loadJS = function(path) {
+        //if ($("script[data-path="+path+"]").length == 0) {
+            var script = document.createElement('script');
+            script.src = path;
+            script.setAttribute('data-path', path);
+            document.body.appendChild(script);
+        //}
+    };
+
+    $rootScope.togglePassword = function(fieldID){
+        $rootScope.passwordShowed = !$rootScope.passwordShowed; 
+        $("#"+fieldID).attr("type", $rootScope.passwordShowed ? "text" : "password");
+    }
+    
+    $rootScope.createQRCode = function(){
+        $rootScope.qrcode = new QRCode("qrcode", {
+                    text: window.location.protocol+'://'+ window.location.hostname +'/users/'+ $rootScope.username,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+    }
+});
+
+/** CONTROLLERS **/
+webRepoApp.controller('navControll', function($scope, $rootScope, $http, $location, $sce, FileUploader) { 
+    $rootScope.ftpUploader = new FileUploader({ url: 'ws/explore.php', alias: 'upload'});
 });
 
 webRepoApp.controller('loginControll', loginControll);
 
-function loginControll($scope, $rootScope, $http, $route, $routeParams, $location, $filter) {
+function loginControll($scope, $rootScope, $http, $location) {
     $scope.username = '';
     $scope.password = '';
-    $rootScope.logged = false;
-    $rootScope.username = null;
+    $scope.newPassword = '';
 
-    $http.post('./ws/profile.php', { cmd: 'is-logged' })
-         .then(function(response) {
-            if(response.status == 200 && response.data.success){
-                $rootScope.logged = true;
-                $rootScope.username = response.data.username;
-                if($location.path() == '/login')
-                    $location.path('/explore');
-            }
-        });
+    if(!$rootScope.logged){
+        $rootScope.logged = true;
+        $http.post('./ws/profile.php', { cmd: 'is-logged' })
+             .then(function(response) {
+                if(response.status == 200 && response.data.success){
+                    $rootScope.logged = true;
+                    $rootScope.username = response.data.username;
+                    
+                    if(response.data.changePassword)
+                        $('#forceChangePasswordWindow').modal('show');
+                    
+                    if($location.path() == '/login')
+                        $location.path('/explore');
+                } else 
+                    $rootScope.logged = false;
+            });
+    }
     
     $scope.doLogin = function() {
         $rootScope.loading = true;
@@ -94,7 +127,7 @@ function loginControll($scope, $rootScope, $http, $route, $routeParams, $locatio
                     $location.path('/explore');
                 
                 } else {
-                    $scope._showAlert('danger', 'remove', "Nome utente o password non validi.");
+                    $rootScope.showAlert('danger', 'times', "Nome utente o password non validi.");
                 }
             });
     };
@@ -113,10 +146,34 @@ function loginControll($scope, $rootScope, $http, $route, $routeParams, $locatio
                 }
             });
     };
+
+    $scope.changePassword = function() {
+        $http.post('./ws/profile.php', 
+            {   'cmd': 'change-password',
+                'password': $scope.newPassword
+            })
+            .then(function(response) {
+                if(response.data.success){
+                    $scope.newPassword = '';
+                    $rootScope.showAlert('success', 'check', "La password e' stata aggiornata con successo");
+                    $('#forceChangePasswordWindow').modal('hide');
+
+                 } else {
+                    if(response.data.error == 'password-too-short')
+                        $rootScope.showAlert('warning', 'exclamation-triangle', "La password deve avere almeno 8 caratteri");
+
+                    else if(response.data.error == 'no-default-password')
+                        $rootScope.showAlert('warning', 'exclamation-triangle', "La apsswrod non può essere uguale al nome utente. Prego cambiarla.");
+
+                    else
+                        $rootScope.showAlert('danger', 'times', "E' accorso un errore durante la comunicazione con il server");
+                 }
+            });
+    };
 }
 
-function profileControll($scope, $http, $timeout) {
-    $scope.profile = Array();
+function profileControll($scope, $rootScope, $http) {
+    $scope.profile = [];
 
     //Get the user profile
     $http.post('./ws/profile.php', 
@@ -128,30 +185,31 @@ function profileControll($scope, $http, $timeout) {
     $scope.editProfile = function() {
         $http.post('./ws/profile.php', 
                 {   'cmd': 'edit-profile',
-                    'passwordNew': $scope.profile.passwordNew,
-                    'passwordConfirm': $scope.profile.passwordConfirm
+                    'name': $scope.profile.name,
+                    'email': $scope.profile.email,
+                    'password': $scope.profile.password
                 })
             .then(function(response) {
                 if(response.data.success){
-                    $scope.profile.passwordNew = '';
-                    $scope.profile.passwordConfirm = '';
-
-                    $scope._showAlert('success', 'ok', "Il profilo è stato modificato con successo!");
-                    $('#editUserWindow').modal('hide');
+                    $scope.profile.password = '';
+                    $rootScope.showAlert('success', 'check', "Il profilo è stato modificato con successo!");
 
                  } else {
-                    if(responseData['error'] == 'confirm-not-match')
-                       $scope._showAlert('warning', 'warning-sign', "La password non coincide con la password di conferma");
-                            
-                    else if(responseData['error'] == 'password-too-short')
-                       $scope._showAlert('warning', 'warning-sign', "La password deve avere almeno 8 caratteri");
+                    if(response.data.error == 'password-too-short')
+                       $rootScope.showAlert('warning', 'warning-sign', "La password deve avere almeno 8 caratteri");
+
+                    else if(response.data.error == 'no-default-password')
+                        $rootScope.showAlert('warning', 'exclamation-triangle', "La apsswrod non può essere uguale al nome utente. Prego cambiarla.");
+
+                    else
+                        $rootScope.showAlert('danger', 'times', "E' accorso un errore durante la comunicazione con il server");
 
                  }       
             });
     };
 };
 
-function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUploader) {
+function exploreControll($scope, $rootScope, $http, $location, FileUploader) {
     $scope.currentPaths = [];
     $scope.files = [];
     $scope.folders = [];
@@ -261,13 +319,13 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                             $scope.folders = [];
 
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             //$rootScope.logged = false;
                             //$rootScope.username = null;
                             //$location.path('/login');
                         
                         } else
-                            $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"E' accorso un errore durante la comunicazione con il server");
                     }
                     $scope.search = '';
                     if(isMoveFile)
@@ -323,13 +381,13 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         }
                         
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             $rootScope.logged = false;
                             $rootScope.username = null;
                             $location.path('/login');
                         
                         } else
-                            $scope._showAlert('warning', 'alert', "E' accorso un errore durante la comunicazione con il server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"E' accorso un errore durante la comunicazione con il server");
                     }
                     $scope.search = '';
                     if(isMoveFile)
@@ -357,17 +415,17 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                  .then(function(response) {
                     if(response.status == 200 && response.data.success){
                         $scope.showEditor = false;
-                        $scope._showAlert('success', 'ok', "Il file <b>"+ $scope.auxItem.file.name + "</b> è stato modificato con successo");
+                        $rootScope.showAlert('success', 'check', "Il file <b>"+ $scope.auxItem.file.name + "</b> è stato modificato con successo");
                         
                     } else {
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             $rootScope.logged = false;
                             $rootScope.username = null;
                             $location.path('/login');
                         
                         } else
-                            $scope._showAlert('danger', 'remove', "Si è verificato un errore durante il salvataggio del file");
+                            $rootScope.showAlert('danger', 'times', "Si è verificato un errore durante il salvataggio del file");
                     }
                     
                     $rootScope.loading = false;
@@ -396,17 +454,17 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         else
                             $scope.folders.push({ name: $scope.auxItem.filename});
 
-                        $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.filename + "</b> è "+ ($scope.auxItem.isFile ? 'stato creato' : 'stata creata') +" con successo!");
+                        $rootScope.showAlert('success', 'check', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.filename + "</b> è "+ ($scope.auxItem.isFile ? 'stato creato' : 'stata creata') +" con successo!");
                         
                     } else {
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             $rootScope.logged = false;
                             $rootScope.username = null;
                             $location.path('/login');
                         
                         } else
-                            $scope._showAlert('danger', 'remove', "Si è verificato un errore durante la creazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+                            $rootScope.showAlert('danger', 'times', "Si è verificato un errore durante la creazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
                     }
                     
                     $scope.search = '';
@@ -438,17 +496,17 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         else
                             $scope.folders[$scope.auxItem.key].name = $scope.renameFilename;
 
-                        $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.renameFilename + "</b> è "+ ($scope.auxItem.isFile ? 'stato rinominato' : 'stata rinominata') +" con successo!");
+                        $rootScope.showAlert('success', 'check', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.renameFilename + "</b> è "+ ($scope.auxItem.isFile ? 'stato rinominato' : 'stata rinominata') +" con successo!");
 
                     } else {
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             $rootScope.logged = false;
                             $rootScope.username = null;
                             $location.path('/login');
                         
                         } else
-                            $scope._showAlert('danger', 'remove', "Si è verificato un errore durante la rinominazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+                            $rootScope.showAlert('danger', 'times', "Si è verificato un errore durante la rinominazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
                     }
                     
                     $scope.search = '';
@@ -478,27 +536,27 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                                 if(response.data.success){
                                     $scope.files.splice($scope.auxItem.key, 1);
 
-                                    $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato spostato' : 'stata spostata') +" con successo!");
+                                    $rootScope.showAlert('success', 'check', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato spostato' : 'stata spostata') +" con successo!");
                                     $scope.auxItem = {};
 
                                 } else  if (response.data.error == 'delete-failed'){
                                     $scope.files.splice($scope.auxItem.key, 1);
 
-                                    $scope._showAlert('warning', 'alert', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato spostato' : 'stata spostata') +" con successo, ma è rimast"+ ($scope.auxItem.isFile ? 'o' : 'a') +" una copia nella vecchia posizione");
+                                    $rootScope.showAlert('warning', 'exclamation-triangle',($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato spostato' : 'stata spostata') +" con successo, ma è rimast"+ ($scope.auxItem.isFile ? 'o' : 'a') +" una copia nella vecchia posizione");
                                     $scope.auxItem = {};
                                 
                                 } else 
-                                    $scope._showAlert('danger', 'remove', "Si è verificato un errore durante lo spostamento del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+                                    $rootScope.showAlert('danger', 'times', "Si è verificato un errore durante lo spostamento del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
 
                         } else {
                             if(!response.data.is_logged) {
-                                $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                                $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                                 $rootScope.logged = false;
                                 $rootScope.username = null;
                                 $location.path('/login');
                             
                             } else
-                                $scope._showAlert('danger', 'remove', "Si è verificato un errore durante lo spostamento del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+                                $rootScope.showAlert('danger', 'times', "Si è verificato un errore durante lo spostamento del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
                         }
                         
                         $scope.search = '';
@@ -513,7 +571,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
             $('#deleteWindow').modal('hide');
 
             var realPath = $scope.currentPaths.join('/');
-            console.log( $scope.auxItem);
+
             // Get files and folders of root directory
             $http.post('./ws/explore.php', 
                  {  cmd: 'delete', 
@@ -527,18 +585,18 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
                         else
                             $scope.folders.splice($scope.auxItem.key, 1);
                         
-                        $scope._showAlert('success', 'ok', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato eliminato' : 'stata eliminata') +" con successo!");
+                        $rootScope.showAlert('success', 'check', ($scope.auxItem.isFile ? ' Il file' : 'La cartella') + " <b>"+ $scope.auxItem.file.name + "</b> è "+ ($scope.auxItem.isFile ? 'stato eliminato' : 'stata eliminata') +" con successo!");
                         $scope.auxItem = {};
                         
                     } else {
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             $rootScope.logged = false;
                             $rootScope.username = null;
                             $location.path('/login');
                         
                         } else
-                            $scope._showAlert('danger', 'remove', "Si è verificato un errore durante la cancellazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
+                            $rootScope.showAlert('danger', 'times', "Si è verificato un errore durante la cancellazione del"+ ($scope.auxItem.isFile ? ' file' : 'la cartella'));
                     }
                     
                     $scope.search = '';
@@ -573,10 +631,7 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
     };
 
     $scope.openCreate = function(isFile){
-        $scope.auxItem = {
-            'filename': isFile ? "nuovo file.txt" : "nuova cartella",
-            'isFile' : isFile
-        };
+        $scope.auxItem = {'filename': '', 'isFile' : isFile};
         
         $("#newFilename").select();
     };
@@ -683,13 +738,13 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
  
                     } else {
                         if(!response.data.is_logged) {
-                            $scope._showAlert('warning', 'alert', "La sessione è scaduta. Effettuare di nuovo l'accesso al server");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"La sessione è scaduta. Effettuare di nuovo l'accesso al server");
                             $rootScope.logged = false;
                             $rootScope.username = null;
                             $location.path('/login');
                         
                         } else
-                            $scope._showAlert('warning', 'alert', "E' accorso un errore la lettura del file");
+                            $rootScope.showAlert('warning', 'exclamation-triangle',"E' accorso un errore la lettura del file");
                     }
                     $rootScope.loading = false;
                 });
@@ -715,37 +770,36 @@ function exploreControll($scope, $rootScope, $http, $timeout, $location, FileUpl
         $scope.submitting = false;
 
         /*if($scope.uploadFilesErrors.length == 0)
-            $scope._showAlert('success', 'ok', "I file sono stati caricati con successo!");
+            $rootScope.showAlert('success', 'check', "I file sono stati caricati con successo!");
 
         else
-            $scope._showAlert('danger', 'remove', "Si e' verificato un errore durante il caricamento dei file. Prego riprovare.");
+            $rootScope.showAlert('danger', 'times', "Si e' verificato un errore durante il caricamento dei file. Prego riprovare.");
             */
     };
     
-    $http.post('./ws/profile.php', { cmd: 'is-logged' })
-         .then(function(response) {
-            if(response.status == 200 && response.data.success){
-                $rootScope.logged = true;
-                $scope.list('/');
-
-            } else {
-                $rootScope.logged = false;
-                $rootScope.username = null;
-                $location.path('/login');
-            }
-        });
+    if($rootScope.logged)
+        $scope.list('/');
+    else
+        $location.path('/login');
 
 }
 
-function usersControll($scope, $rootScope, $http, $timeout, $location, FileUploader) { 
-    $scope.Math =  window.Math;
+function usersControll($scope, $rootScope, $http, $timeout, $location, $q, FileUploader) { 
     $scope.users = [];
     $scope.auxUser = {};
+    $scope.importUsers = null;
+    $scope.selectedImportUsers = [];
+    $scope.selectedUsers = [];
+    $scope.deleteFiles = false;
     
     // GUI
     $scope.mode = 'list';
     $scope.currentPage = 1;
     $scope.numOfEntry = 30;
+
+    //Load XLSX lib
+    $rootScope.loadJS('./vendor/xlsx/jszip.js');
+    $rootScope.loadJS('./vendor/xlsx/xlsx.min.js');
 
     //Get the users list
     $http.post('./ws/users.php', 
@@ -767,90 +821,275 @@ function usersControll($scope, $rootScope, $http, $timeout, $location, FileUploa
 
     $scope.saveUser = function() {
         $http.post('./ws/users.php', 
-                {   'cmd':  ($scope.auxUser.id == null) ? 'add-user' : 'edit-user',
-                    'id':       $scope.auxUser.id,
-                    'username': $scope.auxUser.username,
-                    'realname': $scope.auxUser.realname,
-                    'login_type': $scope.auxUser.login_type,
-                    'passwordNew': $scope.auxUser.passwordNew,
-                    'passwordConfirm': $scope.auxUser.passwordConfirm,
-                    'usertype':  $scope.auxUser.usertype
-                })
+                Object.assign({'cmd':$scope.auxUser.is_new == null ? 'add-user' : 'edit-user'}, $scope.auxUser))
             .then(function(response) {
                 if(response.data.success){
-                    $scope.auxUser.passwordNew = '';
-                    $scope.auxUser.passwordConfirm = '';
+                    $scope.auxUser.password = '';
                 
-                    if($scope.auxUser.id == null){
-                        $scope.auxUser.id = response.data.id;
-                        $scope.auxUser.title = $('#auxUserTitle option:selected').text();
+                    if($scope.auxUser.is_new){
+                        $scope.auxUser.is_new = false;
                         $scope.users.unshift($scope.auxUser);
-
-                        $scope.showAlert('success', 'check', "L'utente e' stato inserito con successo");
+                        $rootScope.showAlert('success', 'check', "L'utente e' stato inserito con successo");
                         
                     } else
-                        $scope.showAlert('success', 'check', "L'utente e' stato modificato con successo");
+                        $rootScope.showAlert('success', 'check', "L'utente e' stato modificato con successo");
 
                     $scope.auxUser = {};
-                    $scope.listMode = true;
-                    $scope.editMode = false;
-                    $scope.permissionMode = false;
+                    $scope.mode = 'list';
 
                  } else {
-                    if(response.data.error == 'confirm-not-match')
-                        $scope.showAlert('warning', 'exclamation-triangle', "La password non coincide con la password di conferma");
-                            
-                    else if(response.data.error == 'password-too-short')
-                        $scope.showAlert('warning', 'exclamation-triangle', "La password deve avere almeno 8 caratteri");
+                    if(response.data.error == 'password-too-short')
+                        $rootScope.showAlert('warning', 'exclamation-triangle', "La password deve avere almeno 8 caratteri");
 
                     else if(response.data.error == 'username-alredy-taken')
-                        $scope.showAlert('danger', 'times', "L'username scelto risulta già in uso. Prego sceglierne uno diverso");
+                        $rootScope.showAlert('danger', 'times', "L'username scelto risulta già in uso. Prego sceglierne uno diverso");
                  }
             });
     };
 
-    $scope.deleteUser = function(cancel) {
-        if(cancel){
-            $http.post('./ws/users.php', 
-                    {   'cmd': 'delete-user',
-                        'id':   $scope.auxUser.id
-                    })
-                .then(function(response) {
-                    if(response.data.success){
-                        $scope.users.splice($scope.users.indexOf($scope.auxUser), 1);
-    
-                        $scope.showAlert('success', 'check', "L'utente è stato eliminato con successo!");
-                        $('#deleteWindow').modal('hide');
-                     }      
-                });
-                
-         } else 
-            $('#deleteWindow').modal('hide');
+    $scope.resetPassword = function() {
+        $http.post('./ws/users.php', 
+                {   'cmd': 'reset-password',
+                    'user':   $scope.auxUser.user
+                })
+            .then(function(response) {
+                if(response.data.success){
+                    $rootScope.showAlert('success', 'check', "La password dell'utente è stata resettata con successo!");
+                    $('#resetPasswordWindow').modal('hide');
+                 
+                 } else
+                    $rootScope.showAlert('danger', 'times', "E' accorso un errore durante la comunicazione con il server");
+            });
     };
 
+    $scope.deleteUser = function() {
+        $http.post('./ws/users.php', 
+                {   'cmd': 'delete-user',
+                    'user':   $scope.auxUser.user,
+                    'deleteFiles': $scope.deleteFiles
+                })
+            .then(function(response) {
+                if(response.data.success){
+                    $scope.deleteFiles = false;
+                    $scope.users.splice($scope.users.indexOf($scope.auxUser), 1);
+
+                    $rootScope.showAlert('success', 'check', "L'utente è stato eliminato con successo!");
+                    $('#deleteWindow').modal('hide');
+
+                 } else
+                    $rootScope.showAlert('danger', 'times', "E' accorso un errore durante la comunicazione con il server");
+            });
+    };
+
+    // Massive action
+    $scope.editSelectedUsers = function() {
+        var promiseEditUsers = [];
+        for(i in $scope.selectedUsers)
+            promiseEditUsers.push((
+                // Uso una lambda funzione per passare in copia l'indice dell'array dell'utente
+                // (il valore index si aggiornerà in maniera asincrona (e sicuramente dopo) rispetto 
+                // alla risposta data dal server 
+                function(index){
+                    $scope.users[index].serverStatus = 'waiting';
+                    $http.post('./ws/users.php', 
+                            Object.assign({'cmd': 'edit-user', 'user': $scope.users[index].user}, $scope.auxMassiveData))
+                        .then(function(response) {
+                            $scope.users[index].serverStatus = response.data.success ? 'ok' : response.data.error;
+                            if(response.data.success)
+                                Object.assign($scope.users[index], $scope.auxMassiveData);
+                        });
+                })($scope.users.map(item => item.user).indexOf($scope.selectedUsers[i]))
+            );
+
+        // Alla fine dell'esecuzione di tutte le chiamate ajax chiudo la finestra
+        $q.all(promiseEditUsers).then(function(){
+            $('#editSelectedUsersWindow').modal('hide');
+        });
+    };
+
+    $scope.resetPasswordSelectedUsers = function() {
+        var promiseEditUsers = [];
+        for(i in $scope.selectedUsers)
+            promiseEditUsers.push((
+                // Uso una lambda funzione per passare in copia l'indice dell'array dell'utente
+                // (il valore index si aggiornerà in maniera asincrona (e sicuramente dopo) rispetto 
+                // alla risposta data dal server 
+                function(index){
+                    $scope.users[index].serverStatus = 'waiting';
+                    $http.post('./ws/users.php', 
+                            {   'cmd': 'reset-password',
+                                'user': $scope.users[index].user
+                            })
+                        .then(function(response) {
+                            $scope.users[index].serverStatus = response.data.success ? 'ok' : response.data.error;
+                        });
+                })($scope.users.map(item => item.user).indexOf($scope.selectedUsers[i]))
+            );
+
+        // Alla fine dell'esecuzione di tutte le chiamate ajax chiudo la finestra
+        $q.all(promiseEditUsers).then(function(){
+            $('#resetPasswordSelectedUsersWindow').modal('hide');
+        });
+    };
+
+    $scope.deleteSelectedUsers = function() {
+        var promiseDeleteUsers = [];
+        for(i in $scope.selectedUsers)
+            promiseDeleteUsers.push((
+                // Uso una lambda funzione per passare in copia l'indice dell'array dell'utente
+                // (il valore index si aggiornerà in maniera asincrona (e sicuramente dopo) rispetto 
+                // alla risposta data dal server 
+                function(index){
+                    $http.post('./ws/users.php', 
+                            {   'cmd': 'delete-user',
+                                'user': $scope.users[index].user,
+                                'deleteFiles': $scope.deleteFiles
+                            })
+                        .then(function(response) {
+                            if(response.data.success){
+                                $scope.users.splice(index, 1);
+                             }
+                        });
+                })($scope.users.map(item => item.user).indexOf($scope.selectedUsers[i]))
+            );
+
+        // Alla fine dell'esecuzione di tutte le chiamate ajax chiudo la finestra
+        $q.all(promiseDeleteUsers).then(function(){
+            $('#deleteSelectedUsersWindow').modal('hide');
+        });
+   };
+
+    // Import Massive User
+    $scope.fileUploadhHandler = function(event){
+        // Prevent default behavior (Prevent file from being opened)
+        event.preventDefault();
+        
+        if(event.target.files){
+            for (const file of event.target.files)
+                $scope.elaborateListUsers(file);
+
+        } else if (event.dataTransfer.items) {
+            for (const item of event.dataTransfer.items)
+                if (item.kind === "file") 
+                    $scope.elaborateListUsers(item.getAsFile());
+        } else {
+            for (const file of event.dataTransfer.files)
+                $scope.elaborateListUsers(file);
+        }
+    };
+
+    $scope.elaborateListUsers = function(file){
+        // Check if the file is an XSLS O CVS.
+        if (file.type && !file.type.startsWith('text/csv') && !file.type.startsWith('application/vnd.ms-excel') && !file.type.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+            alert("Il file deve essere un foglio Excel (XLS o XLSX) oppure un file CSV");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.addEventListener('load', (event) => {
+            $scope.$apply(function () {
+                $scope.importUsers = [];
+                $scope.selectedImportUsers = [];
+                var workbook = XLSX.read(event.target.result, { type: 'binary' });
+
+                workbook.SheetNames.forEach(function(sheetName) {
+                    // Here is your object
+                    $scope.importUsers = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheetName]);
+                    for(i in $scope.importUsers){
+                        $scope.selectedImportUsers.push($scope.importUsers[i].user);
+                        $scope.importUsers[i].serverStatus = 'loaded';
+                    }
+                })
+            });
+        });
+        reader.readAsBinaryString(file);
+    }
+
+    $scope.registImportUsers = function(){
+        for(i in $scope.selectedImportUsers){
+            var idx = $scope.importUsers.map(item => item.user).indexOf($scope.selectedImportUsers[i]);
+
+            if($scope.importUsers[idx].serverStatus != 'ok')
+                (function(index) {
+                    $scope.importUsers[index].serverStatus = 'waiting';
+                    $http.post('./ws/users.php', 
+                            Object.assign({'cmd': 'add-user'}, $scope.importUsers[index]))
+                        .then(function(response) {
+                            if(response.data.success){
+                                $scope.importUsers[index].serverStatus = 'ok';
+                                $scope.importUsers[index].password = '';
+                                $scope.importUsers[index].is_new = false;
+                                $scope.users.unshift($scope.importUsers[index]);
+
+                            } else {
+                                $scope.importUsers[index].serverStatus = response.data.error;
+                             }
+                        });
+                }(idx));
+        }
+    }
 
     // GUI
-    $scope.backList = function(){
-        $scope.mode = 'list';
-    }
-
-    $scope.check = function() {
-        console.log($scope.userForm.$error);
-    }
-
-    $scope.addUser = function() {
+    $scope.openAdduser = function() {
         $scope.mode = 'edit';
-        $scope.auxUser = {};
+        $scope.auxUser = {'is_new': true};
     };
 
-    $scope.editUser = function(id) {
+    $scope.openEditUser = function(user) {
         $scope.mode = 'edit';
-        $scope.auxUser = $scope.users.filter(function(item) {return item.id === id;})[0];
+        $scope.auxUser = $scope.users.filter(function(item) {return item.user === user;})[0];
+        $scope.auxUser.is_new = false;
     };
 
-    $scope.openDeleteUser = function(id){
-        $scope.auxUser = $scope.users.filter(function(item) {return item.id === id;})[0];
+    $scope.openResetPassword = function(user) {
+        $scope.auxUser = $scope.users.filter(function(item) {return item.user === user;})[0];
+    };
+
+    $scope.openDeleteUser = function(user){
+        $scope.auxUser = $scope.users.filter(function(item) {return item.user === user;})[0];
     }
+
+    $scope.selectDeselectAllUser = function () {
+        var isFill = $scope.selectedUsers.length == $scope.filtered.length;
+        $scope.selectedUsers = [];
+
+        if(!isFill)
+            for(i in $scope.filtered)
+                $scope.selectedUsers.push($scope.filtered[i].user);
+    }
+
+    $scope.toggleSelectionUser = function (user) {
+        var idx = $scope.selectedUsers.indexOf(user);
+
+        // Is currently selected
+        if (idx > -1)
+            $scope.selectedUsers.splice(idx, 1);
+
+        // Is newly selected
+        else
+            $scope.selectedUsers.push(user);
+      };
+
+    $scope.selectDeselectAllImportUser = function () {
+        var isFill = $scope.selectedImportUsers.length == $scope.importUsers.length;
+        $scope.selectedImportUsers = [];
+
+        if(!isFill)
+            for(i in $scope.importUsers)
+                $scope.selectedImportUsers.push($scope.importUsers[i].user);
+    }
+
+    $scope.toggleSelectionImportUser = function (user) {
+        var idx = $scope.selectedImportUsers.indexOf(user);
+
+        // Is currently selected
+        if (idx > -1)
+            $scope.selectedImportUsers.splice(idx, 1);
+
+        // Is newly selected
+        else
+            $scope.selectedImportUsers.push(user);
+      };        
 }
 
 webRepoApp
@@ -945,6 +1184,26 @@ webRepoApp
                 return input.slice(start);
             }
             return [];
+        }
+    })
+    .filter('erroreMessage', function() {
+        return function(input) {
+            switch(input){
+                case 'password-too-short':
+                    return "Password < 8 caratteri";
+
+                case 'username-alredy-taken':
+                    return "Nome utente esistente";
+
+                case 'system-error':
+                    return "Errore nel filesystem";
+
+                case 'sql-error':
+                    return "Errore SQL";
+
+                default:
+                    return "Errore generico";
+            }
         }
     });
 

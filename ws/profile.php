@@ -4,7 +4,9 @@ if(empty($_POST))
     $_POST = json_decode(file_get_contents('php://input'), true);
 
 //Starting PHP session
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 require_once '../config.php';
 include_once '../libs/database.php';
@@ -15,14 +17,14 @@ if(isset($_POST['cmd'])){
     switch($_POST['cmd']){
         case 'is-logged':
             if(LOGIN_PUREFTP_SQL){
-                echo json_encode(array('success' => !empty($_SESSION['webRepo']['user']), 'username' => $_SESSION['webRepo']['user']['username']));
+                echo json_encode(array('success' => !empty($_SESSION['webRepo']['user']), 'username' => $_SESSION['webRepo']['user']['username'], 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
 
             } else {
                 include_once '../libs/ftp.php';
                 if(!empty($_SESSION['webRepo']['user'])){
                     $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);
 
-                    echo json_encode(array('success' => $_mHandler->isConnected() && $_mHandler->isLogged(), 'username' => $_SESSION['webRepo']['user']['username']));
+                    echo json_encode(array('success' => $_mHandler->isConnected() && $_mHandler->isLogged(), 'username' => $_SESSION['webRepo']['user']['username'], 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
 
                 } else 
                     echo json_encode(array('success' => false));
@@ -31,33 +33,33 @@ if(isset($_POST['cmd'])){
 
         case 'login':
             if(LOGIN_PUREFTP_SQL){
-                $sQuery ="  SELECT *
+                $sQuery ="  SELECT `password`
                             FROM `". PURE_FTP_TABLE ."` 
-                            WHERE `User` = '{$_POST['username']}' 
-                            AND `Password`='". crypt($_POST['password'], '$1$OG4RNwvn$') ."'
+                            WHERE `user` = '{$_POST['username']}' 
+                            AND `password`='". crypt($_POST['password'], FTP_CRYPT_SALT) ."'
                             LIMIT 1;";
 
-                $aValues = Database::instance()->fetchOneRow($sQuery, DB_DATABASE);
-                if (!empty($_POST['username']) && $aValues != null) {
-                    $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password']);
-                    echo json_encode(array('success' => true));
+                $sHashedPassword = Database::instance()->fetchOneValue($sQuery, DB_DATABASE);
+                if (!empty($_POST['username']) && $sHashedPassword != null) {
+                    $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password'], 'change-password' => crypt($_POST['username'], FTP_CRYPT_SALT) == $sHashedPassword);
+                    echo json_encode(array('success' => true, 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
 
                 } else 
-                    echo json_encode(array('success' => false, 'query' => $sQuery));
+                    echo json_encode(array('success' => false));
 
             } else {
                 include_once '../libs/ftp.php';
                 $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_POST['username'], $_POST['password']);        
 
                 if($_mHandler->isConnected() && $_mHandler->isLogged()){
-                    $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password']);
+                    
+                    $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password'], 'change-password' => crypt($_POST['username'], FTP_CRYPT_SALT) == crypt($_POST['password'], FTP_CRYPT_SALT));
 
-                    echo json_encode(array('success' => true));
+                    echo json_encode(array('success' => true, 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
 
                 } else 
                     echo json_encode(array('success' => false , 'is_logged' => $_mHandler->isLogged(), 'error' => $_mHandler->getLastError()));
             }
-
             break;
 
         case 'logout':
@@ -66,41 +68,50 @@ if(isset($_POST['cmd'])){
             break;
 
         case 'get-profile':
-            $sQuery="   SELECT `User`
+            $sQuery="   SELECT `user`, `name`, `email`, `dir`
                         FROM `". PURE_FTP_TABLE ."`
-                        WHERE `User` = '{$_SESSION['webRepo']['user']['username']}'
+                        WHERE `user` = '{$_SESSION['webRepo']['user']['username']}'
                         LIMIT 1;";
 
             echo json_encode(Database::instance()->fetchOneRow($sQuery));
             break;
 
         case 'edit-profile':
-            if(!empty($_POST['passwordNew'])){
-                if($_POST['passwordNew'] != $_POST['passwordConfirm'])
-                    die(json_encode(array('success' => false, 'error' => 'confirm-not-match')));
-
-                else if(strlen($_POST['passwordNew']) < 8)
+            if(!empty($_POST['password'])) { 
+                if(strlen($_POST['password']) < 8)
                     die(json_encode(array('success' => false, 'error' => 'password-too-short')));
 
-                else {
-                    $sQuery = sprintf(" UPDATE `". PURE_FTP_TABLE ."` 
-                                        SET `Password` = '%s'
-                                         WHERE `User` = '%s';",
-                                        crypt($_POST['passwordNew'], '$1$OG4RNwvn$'), $_SESSION['webRepo']['user']['username'], '');
+                else if($_SESSION['webRepo']['user']['username'] == $_POST['password'])
+                        die(json_encode(array('success' => false, 'error' => 'no-default-password')));
+            }
+            $sQuery = " UPDATE `". PURE_FTP_TABLE ."`
+                        SET ". (!empty($_POST['name']) ? "`name` = '". Database::instance()->escapeString($_POST['name']) ."'," : '') ."
+                            ". (!empty($_POST['email']) ? "`email` = '". Database::instance()->escapeString($_POST['email']) ."'," : '') ."
+                            ". (!empty($_POST['password']) ? "`password` = '". crypt($_POST['password'], FTP_CRYPT_SALT) ."'," : '') ."
+                            `user` = '". Database::instance()->escapeString($_SESSION['webRepo']['user']['username']) ."'
+                        WHERE `user` = '". Database::instance()->escapeString($_SESSION['webRepo']['user']['username']) ."';";
+            die(json_encode(array('success' => Database::instance()->doQuery($sQuery))));
+            break;
 
-                    $_SESSION['webRepo']['user']['password'] = $_POST['passwordNew'];
+        case 'change-password':
+            if(!empty($_POST['password'])){
+                if(strlen($_POST['password']) < 8)
+                    die(json_encode(array('success' => false, 'error' => 'password-too-short')));
+
+                else if( $_SESSION['webRepo']['user']['username'] == $_POST['password'])
+                    die(json_encode(array('success' => false, 'error' => 'no-default-password')));
+
+                else {
+                    $sQuery = " UPDATE `". PURE_FTP_TABLE ."` 
+                                SET `password` = '". crypt($_POST['password'], FTP_CRYPT_SALT) ."'
+                                WHERE `user` = '". $_SESSION['webRepo']['user']['username'] ."';";
+
+                    $_SESSION['webRepo']['user']['password'] = $_POST['password'];
+                    $_SESSION['webRepo']['user']['change-password'] = false;
                 }
-            } else {
-                /*$sQuery = sprintf("	UPDATE `". PURE_FTP_TABLE ."` 
-                                    SET `realname` = '%s'
-                                     WHERE `id` = '%d';",
-                                   Text::toUtf8($_POST['realname']), $_SESSION['icecode']['user']['id'] );
-            
-                $_SESSION['icecode']['user']['realname'] = $_POST['realname']; */
             }
 
             echo json_encode(array('success' => Database::instance()->doQuery($sQuery)));
- 
             break;
     }
 
