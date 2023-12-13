@@ -97,13 +97,24 @@ if(isset($_POST['cmd'])){
 
                     // Create personal folder on webserver
                     if($bSuccess){
-                        system('mkdir '. FTP_ROOT_PATH . $_POST['user'], $retvalMkDir);
-                        system('chgrp '. FTP_GROUP_ID .' '. FTP_ROOT_PATH . $_POST['user'], $retvalCHGP);
-                        system('chmod 775 '. FTP_ROOT_PATH . $_POST['user'], $retvalCHMOD);
+                        $nRetvalMkDir = $nRetvalCHMOD = 0;
+                        system('mkdir '. FTP_ROOT_PATH . $_POST['user'], $nRetvalMkDir);
+                        if($nRetvalMkDir == 1)
+                            system('chmod 775 '. FTP_ROOT_PATH . $_POST['user'], $nRetvalCHMOD);
+                        
+                        if($nRetvalMkDir == 1 && $nRetvalCHMOD == 1){
+                            // Se ho creato la cartella e qualcosa è andato storto la rimuovo
+                            if ($nRetvalMkDir == 1)
+                                system('rm -r '. FTP_ROOT_PATH . $_POST['user'], $nRetvalMkDir);
+                                
+                            // Committo tutta la transazione e verifico la correttezza di tutti i dati
+                            die(json_encode(array('success' => Database::instance()->tryCommit(), 'error' => 'sql-error')));
 
-                        // Committo tutta la transazione e verifico la correttezza di tutti i dati
-                        die(json_encode(array('success' => Database::instance()->tryCommit(), 'error' => 'sql-error')));
-
+                        } else {
+                            // Annullo tutte le modifiche
+                            Database::instance()->rollback();
+                            $bSuccess = false;
+                     }
                     } else { 
                         // Annullo tutte le modifiche
                         Database::instance()->rollback();
@@ -152,16 +163,23 @@ if(isset($_POST['cmd'])){
                 $bSuccess = $bSuccess && Database::instance()->doQuery("DROP USER '{$_POST['user']}'@'localhost';");
 
                 for($i=1; $i<=5;$i++)
-                    $bSuccess = $bSuccess && Database::instance()->doQuery("DROP DATABASE `{$_POST['user']}_{$i}`;");
+                    $bSuccess = $bSuccess && Database::instance()->doQuery("DROP DATABASE `stud_{$_POST['user']}_{$i}`;");
                 
 
                 // drop personal folder on webserver
                 if($bSuccess){
-                    system('rm -r '. FTP_ROOT_PATH . $_POST['user'], $retval);
+                    system('rm -r '. FTP_ROOT_PATH . $_POST['user'], $nRetvalRM);
 
-                    // Committo tutta la transazione e verifico la correttezza di tutti i dati
-                    $bSuccess = Database::instance()->tryCommit();
-                    die(json_encode(array('success' => $bSuccess, 'error' => 'sql-error')));
+                    if($nRetvalRM == 1){
+                        // Committo tutta la transazione e verifico la correttezza di tutti i dati
+                        $bSuccess = Database::instance()->tryCommit();
+                        die(json_encode(array('success' => $bSuccess, 'error' => 'sql-error')));
+
+                    } else {
+                        // Annullo tutte le modifiche
+                        Database::instance()->rollback();
+                        $bSuccess = false;
+                     } 
 
                 } else { 
                     // Annullo tutte le modifiche
