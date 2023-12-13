@@ -88,10 +88,10 @@ if(isset($_POST['cmd'])){
                                                                 '{$_POST['quota_files']}');");
 
                     // Create DB profile e database
-                    $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE USER '{$_POST['user']}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{$_POST['password']}';");
+                    $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE USER IF NOT EXISTS '{$_POST['user']}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{$_POST['password']}';");
 
                     for($i=1; $i<=5;$i++){
-                        $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE DATABASE `stud_{$_POST['user']}_{$i}`;");
+                        $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE DATABASE IF NOT EXISTS `stud_{$_POST['user']}_{$i}`;");
                         $bSuccess = $bSuccess && Database::instance()->doQuery("GRANT ALL PRIVILEGES ON `stud_{$_POST['user']}_{$i}`.* TO '{$_POST['user']}'@'localhost';");
                     }
 
@@ -99,29 +99,31 @@ if(isset($_POST['cmd'])){
                     if($bSuccess){
                         $nRetvalMkDir = $nRetvalCHMOD = 0;
                         system('mkdir '. FTP_ROOT_PATH . $_POST['user'], $nRetvalMkDir);
-                        if($nRetvalMkDir == 1)
+
+                        if($nRetvalMkDir == 1) {
                             system('chmod 775 '. FTP_ROOT_PATH . $_POST['user'], $nRetvalCHMOD);
-                        
-                        if($nRetvalMkDir == 1 && $nRetvalCHMOD == 1){
-                            // Se ho creato la cartella e qualcosa è andato storto la rimuovo
-                            if ($nRetvalMkDir == 1)
+                            if($nRetvalCHMOD == 1)
+                                // Committo tutta la transazione e verifico la correttezza di tutti i dati
+                                die(json_encode(array('success' => Database::instance()->tryCommit(), 'error' => 'sql-error')));
+                            
+                            else {
+                                // Se ho creato la cartella e qualcosa è andato storto la rimuovo
                                 system('rm -r '. FTP_ROOT_PATH . $_POST['user'], $nRetvalMkDir);
-                                
-                            // Committo tutta la transazione e verifico la correttezza di tutti i dati
-                            die(json_encode(array('success' => Database::instance()->tryCommit(), 'error' => 'sql-error')));
+                                // Annullo tutte le modifiche
+                                Database::instance()->rollback();
+                                die(json_encode(array('success' => false, 'error' => 'file-system-error-chmod')));
+                            }
 
                         } else {
                             // Annullo tutte le modifiche
                             Database::instance()->rollback();
-                            $bSuccess = false;
-                     }
+                            die(json_encode(array('success' => false, 'error' => 'file-system-error-mkdir')));
+                        }
                     } else { 
                         // Annullo tutte le modifiche
                         Database::instance()->rollback();
-                        $bSuccess = false;
+                        die(json_encode(array('success' => $bSuccess, 'error' => 'db-error')));
                      }
-
-                    die(json_encode(array('success' => $bSuccess, 'error' => 'system-error')));
                 }
             }
             break;
@@ -134,6 +136,9 @@ if(isset($_POST['cmd'])){
                 else if($_POST['user'] == $_POST['password'])
                         die(json_encode(array('success' => false, 'error' => 'no-default-password')));
             }
+            // Avvio la transazione
+            Database::instance()->startTransaction();
+
             $sQuery = " UPDATE `". PURE_FTP_TABLE ."`
                         SET ". (!empty($_POST['name']) ? "`name` = '". Database::instance()->escapeString($_POST['name']) ."'," : '') ."
                             ". (!empty($_POST['email']) ? "`email` = '". Database::instance()->escapeString($_POST['email']) ."'," : '') ."
@@ -149,7 +154,13 @@ if(isset($_POST['cmd'])){
                             ". (!empty($_POST['comment']) ? "`comment` = '". Database::instance()->escapeString($_POST['comment']) ."'," : '') ."
                             `user` = '". Database::instance()->escapeString($_POST['user']) ."'
                         WHERE `user` = '". Database::instance()->escapeString($_POST['user']) ."';";
-            die(json_encode(array('success' => Database::instance()->doQuery($sQuery))));
+                        
+            if(!empty($_POST['password']){
+                Database::instance()->doQuery("ALTER USER '". Database::instance()->escapeString($_POST['user']) ."'@'localhost' IDENTIFIED BY '{$_POST['password']}';");
+                Database::instance()->doQuery("FLUSH PRIVILEGES;");
+            }
+            
+            die(json_encode(array('success' => Database::instance()->tryCommit())));
             break;
 
         case 'delete-user':
@@ -197,11 +208,17 @@ if(isset($_POST['cmd'])){
         case 'reset-password':
             if(empty($_POST['user']))
                 die(json_encode(array('success' => false, 'error' => 'missing-user')));
-            else 
-                $sQuery = " UPDATE `". PURE_FTP_TABLE ."`
-                            SET `password` = '". crypt($_POST['user'], FTP_CRYPT_SALT) ."'
-                            WHERE `user` = '". Database::instance()->escapeString($_POST['user']) ."';";
-            echo json_encode(array('success' => Database::instance()->doQuery($sQuery)));
+            else {
+                // Avvio la transazione
+                Database::instance()->startTransaction();
+                // Cambio la password dell'utente FTP
+                Database::instance()->doQuery("UPDATE `". PURE_FTP_TABLE ."` SET `password` = '". crypt($_POST['user'], FTP_CRYPT_SALT) ."' WHERE `user` = '". Database::instance()->escapeString($_POST['user']) ."';");
+                // Cambio la password dell'utente del database MySQL e aggiorno i permessi
+                Database::instance()->doQuery("ALTER USER '". Database::instance()->escapeString($_POST['user']) ."'@'localhost' IDENTIFIED BY '{$_POST['password']}';");
+                Database::instance()->doQuery("FLUSH PRIVILEGES;");
+                // Committo i dati sul server e invio il risultato
+                die(json_encode(array('success' => Database::instance()->tryCommit())));
+            }
             break;
     }
     return;
