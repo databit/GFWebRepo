@@ -88,22 +88,21 @@ if(isset($_POST['cmd'])){
                                                                 '{$_POST['quota_files']}');");
 
                     // Create DB profile e database
-                    /*$bSuccess = $bSuccess && Database::instance()->doQuery("CREATE USER '{$_POST['User']}'@'localhost' IDENTIFIED WITH mysql_native_password AS '{$_POST['password']}';GRANT USAGE ON *.* TO '{$_POST['User']}'@'localhost' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 MAX_USER_CONNECTIONS 0;");
+                    $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE USER '{$_POST['user']}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{$_POST['password']}';");
 
                     for($i=1; $i<=5;$i++){
-                        $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE DATABASE `{$_POST['User']}_{$i}`;");
-                        $bSuccess = $bSuccess && Database::instance()->doQuery("GRANT ALL PRIVILEGES ON `{$_POST['User']}_{$i}`.* TO '{$_POST['User']}'@'localhost';");
-                    }*/
+                        $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE DATABASE `stud_{$_POST['user']}_{$i}`;");
+                        $bSuccess = $bSuccess && Database::instance()->doQuery("GRANT ALL PRIVILEGES ON `stud_{$_POST['user']}_{$i}`.* TO '{$_POST['user']}'@'localhost';");
+                    }
 
                     // Create personal folder on webserver
                     if($bSuccess){
-                        //system('mkdir '. FTP_ROOT_PATH . $_POST['User'], $retval);
-                        //system('chgrp '. FTP_GROUP_ID .' '. FTP_ROOT_PATH . $_POST['User'], $retval);
-                        //system('chmod 775 '. FTP_ROOT_PATH . $_POST['User'], $retval);
+                        system('mkdir '. FTP_ROOT_PATH . $_POST['user'], $retvalMkDir);
+                        system('chgrp '. FTP_GROUP_ID .' '. FTP_ROOT_PATH . $_POST['user'], $retvalCHGP);
+                        system('chmod 775 '. FTP_ROOT_PATH . $_POST['user'], $retvalCHMOD);
 
                         // Committo tutta la transazione e verifico la correttezza di tutti i dati
-                        $bSuccess = Database::instance()->tryCommit();
-                        die(json_encode(array('success' => $bSuccess, 'error' => 'sql-error')));
+                        die(json_encode(array('success' => Database::instance()->tryCommit(), 'error' => 'sql-error')));
 
                     } else { 
                         // Annullo tutte le modifiche
@@ -150,15 +149,15 @@ if(isset($_POST['cmd'])){
                 $bSuccess = Database::instance()->doQuery("DELETE FROM `". PURE_FTP_TABLE ."` WHERE `user` = '". Database::instance()->escapeString($_POST['user']) ."';");
 
                 // Delete DB profile e database
-                /*$bSuccess = $bSuccess && Database::instance()->doQuery("DROP USER '{$_POST['user']}'@'localhost';");
+                $bSuccess = $bSuccess && Database::instance()->doQuery("DROP USER '{$_POST['user']}'@'localhost';");
 
                 for($i=1; $i<=5;$i++)
                     $bSuccess = $bSuccess && Database::instance()->doQuery("DROP DATABASE `{$_POST['user']}_{$i}`;");
-                */
+                
 
                 // drop personal folder on webserver
                 if($bSuccess){
-                    //system('rm -r '. FTP_ROOT_PATH . $_POST['User'], $retval);
+                    system('rm -r '. FTP_ROOT_PATH . $_POST['user'], $retval);
 
                     // Committo tutta la transazione e verifico la correttezza di tutti i dati
                     $bSuccess = Database::instance()->tryCommit();
