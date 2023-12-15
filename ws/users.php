@@ -155,7 +155,7 @@ if(isset($_POST['cmd'])){
                             `user` = '". Database::instance()->escapeString($_POST['user']) ."'
                         WHERE `user` = '". Database::instance()->escapeString($_POST['user']) ."';";
                         
-            if(!empty($_POST['password']){
+            if(!empty($_POST['password'])){
                 Database::instance()->doQuery("ALTER USER '". Database::instance()->escapeString($_POST['user']) ."'@'localhost' IDENTIFIED BY '{$_POST['password']}';");
                 Database::instance()->doQuery("FLUSH PRIVILEGES;");
             }
