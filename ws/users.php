@@ -89,10 +89,10 @@ if(isset($_POST['cmd'])){
 
                     // Create DB profile e database
                     $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE USER IF NOT EXISTS '{$_POST['user']}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{$_POST['password']}';");
-
+                    $sDBPrefix = getDatabaseName($_POST['user']);
                     for($i=1; $i<=5;$i++){
-                        $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE DATABASE IF NOT EXISTS `stud_{$_POST['user']}_{$i}`;");
-                        $bSuccess = $bSuccess && Database::instance()->doQuery("GRANT ALL PRIVILEGES ON `stud_{$_POST['user']}_{$i}`.* TO '{$_POST['user']}'@'localhost';");
+                        $bSuccess = $bSuccess && Database::instance()->doQuery("CREATE DATABASE IF NOT EXISTS `{$sDBPrefix}_{$i}`;");
+                        $bSuccess = $bSuccess && Database::instance()->doQuery("GRANT ALL PRIVILEGES ON `{$sDBPrefix}_{$i}`.* TO '{$_POST['user']}'@'localhost';");
                     }
 
                     // Create personal folder on webserver
@@ -173,8 +173,9 @@ if(isset($_POST['cmd'])){
                 // Delete DB profile e database
                 $bSuccess = $bSuccess && Database::instance()->doQuery("DROP USER '{$_POST['user']}'@'localhost';");
 
+                $sDBPrefix = getDatabaseName($_POST['user']);
                 for($i=1; $i<=5;$i++)
-                    $bSuccess = $bSuccess && Database::instance()->doQuery("DROP DATABASE `stud_{$_POST['user']}_{$i}`;");
+                    $bSuccess = $bSuccess && Database::instance()->doQuery("DROP DATABASE `{$sDBPrefix}_{$i}`;");
                 
 
                 // drop personal folder on webserver
@@ -222,5 +223,9 @@ if(isset($_POST['cmd'])){
             break;
     }
     return;
+}
+
+function getDatabaseName($sUserName){
+    return 'stud_'. str_replace('.', '-', $sUserName);
 }
 ?>
