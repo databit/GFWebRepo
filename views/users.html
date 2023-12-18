@@ -93,13 +93,13 @@
      <td colspan="4" class="text-center" ng-show="filtered.length/numOfEntry > 1">
       <ul class="pagination justify-content-center">
         <li class="page-item" ng-class="{'disabled': currentPage == 1}">
-         <a href="#" class="page-link" ng-click="previousPage()">&laquo;</a>
+         <a href="" class="page-link" ng-click="previousPage()">&laquo;</a>
         </li>
         <li ng-repeat="n in [] | range:1:Math.ceil(filtered.length/numOfEntry)" class="{{n == currentPage | iif : 'active' : ''}}">
-         <a href="#" class="page-link" ng-click="setPage(n)">{{n}}</a>
+         <a href="" class="page-link" ng-click="setPage(n)">{{n}}</a>
         </li>
         <li class="page-item" ng-class="{'disabled': currentPage == Math.ceil(filtered.length/numOfEntry)}">
-         <a href="#" class="page-link" ng-click="nextPage(filtered.length)">&raquo;</a>
+         <a href="" class="page-link" ng-click="nextPage(filtered.length)">&raquo;</a>
         </li>
       </ul>
      </td>
