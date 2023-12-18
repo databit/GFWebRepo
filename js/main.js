@@ -127,6 +127,9 @@ function loginControll($scope, $rootScope, $http, $location) {
                     $rootScope.username = $scope.username;
                     $rootScope.is_admin = response.data.is_admin == 1;
 
+                    if(response.data.changePassword)
+                        $('#forceChangePasswordWindow').modal('show');
+
                     $location.path('/explore');
                 
                 } else {

@@ -174,7 +174,7 @@ include "config.php";
 
 
     <!-- Divider -->
-    <hr class="sidebar-divider" ng-show="logged">
+    <hr class="sidebar-divider" ng-show="logged && is_admin">
 
     <!-- Heading -->
     <div class="sidebar-heading" ng-show="logged && is_admin">
