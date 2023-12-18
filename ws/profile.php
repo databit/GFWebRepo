@@ -17,14 +17,14 @@ if(isset($_POST['cmd'])){
     switch($_POST['cmd']){
         case 'is-logged':
             if(LOGIN_PUREFTP_SQL){
-                echo json_encode(array('success' => !empty($_SESSION['webRepo']['user']), 'username' => $_SESSION['webRepo']['user']['username'], 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
+                echo json_encode(array('success' => !empty($_SESSION['webRepo']['user']), 'username' => $_SESSION['webRepo']['user']['username'], 'changePassword' => $_SESSION['webRepo']['user']['change-password'], 'is_admin' => $_SESSION['webRepo']['user']['is_admin']));
 
             } else {
                 include_once '../libs/ftp.php';
                 if(!empty($_SESSION['webRepo']['user'])){
                     $_mHandler = FTP::getInstance(FTP_HOST, '21', null, $_SESSION['webRepo']['user']['username'], $_SESSION['webRepo']['user']['password']);
 
-                    echo json_encode(array('success' => $_mHandler->isConnected() && $_mHandler->isLogged(), 'username' => $_SESSION['webRepo']['user']['username'], 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
+                    echo json_encode(array('success' => $_mHandler->isConnected() && $_mHandler->isLogged(), 'username' => $_SESSION['webRepo']['user']['username'], 'changePassword' => $_SESSION['webRepo']['user']['change-password'], 'is_admin' => false));
 
                 } else 
                     echo json_encode(array('success' => false));
@@ -33,16 +33,16 @@ if(isset($_POST['cmd'])){
 
         case 'login':
             if(LOGIN_PUREFTP_SQL){
-                $sQuery ="  SELECT `password`
+                $sQuery ="  SELECT `password`, `is_admin`
                             FROM `". PURE_FTP_TABLE ."` 
                             WHERE `user` = '{$_POST['username']}' 
                             AND `password`='". crypt($_POST['password'], FTP_CRYPT_SALT) ."'
                             LIMIT 1;";
 
-                $sHashedPassword = Database::instance()->fetchOneValue($sQuery, DB_DATABASE);
-                if (!empty($_POST['username']) && $sHashedPassword != null) {
-                    $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password'], 'change-password' => crypt($_POST['username'], FTP_CRYPT_SALT) == $sHashedPassword);
-                    echo json_encode(array('success' => true, 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
+                $aProfile = Database::instance()->fetchOneRow($sQuery, DB_DATABASE);
+                if (!empty($_POST['username']) && $aProfile != null) {
+                    $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password'], 'change-password' => crypt($_POST['username'], FTP_CRYPT_SALT) == $aProfile['password'], 'is_admin' => $aProfile['is_admin']);
+                    echo json_encode(array('success' => true, 'changePassword' => $_SESSION['webRepo']['user']['change-password'], 'is_admin' => $aProfile['is_admin']));
 
                 } else 
                     echo json_encode(array('success' => false));
@@ -55,7 +55,7 @@ if(isset($_POST['cmd'])){
                     
                     $_SESSION['webRepo']['user'] = array('username' => $_POST['username'], 'password' => $_POST['password'], 'change-password' => crypt($_POST['username'], FTP_CRYPT_SALT) == crypt($_POST['password'], FTP_CRYPT_SALT));
 
-                    echo json_encode(array('success' => true, 'changePassword' => $_SESSION['webRepo']['user']['change-password']));
+                    echo json_encode(array('success' => true, 'changePassword' => $_SESSION['webRepo']['user']['change-password'], 'is_admin' => false));
 
                 } else 
                     echo json_encode(array('success' => false , 'is_logged' => $_mHandler->isLogged(), 'error' => $_mHandler->getLastError()));

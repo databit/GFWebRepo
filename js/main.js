@@ -99,6 +99,7 @@ function loginControll($scope, $rootScope, $http, $location) {
                 if(response.status == 200 && response.data.success){
                     $rootScope.logged = true;
                     $rootScope.username = response.data.username;
+                    $rootScope.is_admin = response.data.is_admin == 1;
                     
                     if(response.data.changePassword)
                         $('#forceChangePasswordWindow').modal('show');
@@ -124,6 +125,8 @@ function loginControll($scope, $rootScope, $http, $location) {
                 if(response.status == 200 && response.data.success){
                     $rootScope.logged = true;
                     $rootScope.username = $scope.username;
+                    $rootScope.is_admin = response.data.is_admin == 1;
+
                     $location.path('/explore');
                 
                 } else {
@@ -1032,13 +1035,14 @@ function usersControll($scope, $rootScope, $http, $timeout, $location, $q, FileU
     // GUI
     $scope.openAdduser = function() {
         $scope.mode = 'edit';
-        $scope.auxUser = {'is_new': true};
+        $scope.auxUser = {'is_new': true, 'status': true};
     };
 
     $scope.openEditUser = function(user) {
         $scope.mode = 'edit';
         $scope.auxUser = $scope.users.filter(function(item) {return item.user === user;})[0];
         $scope.auxUser.is_new = false;
+        $scope.auxUser.status = $scope.auxUser.status == 1;
     };
 
     $scope.openResetPassword = function(user) {

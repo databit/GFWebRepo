@@ -159,13 +159,13 @@ include "config.php";
     </li>
 
     <li class="nav-item">
-     <a href="/phpmyadmin" class="nav-link" target="_blank">
+     <a href="/phpmyadmin/" class="nav-link" target="_blank">
       <i class="fas fa-fw fa-database"></i>
       <span>PhpMyAdmin</span>
      </a>
     </li>
 
-    <li class="nav-item">
+    <li class="nav-item" ng-show="logged">
      <a href="" class="nav-link" data-toggle="modal" data-target="#logoutWindow">
       <i class="fas fa-fw fa-sign-out-alt"></i>
       <span>Esci</span>
@@ -177,11 +177,11 @@ include "config.php";
     <hr class="sidebar-divider" ng-show="logged">
 
     <!-- Heading -->
-    <div class="sidebar-heading" ng-show="logged">
+    <div class="sidebar-heading" ng-show="logged && is_admin">
      Admin
     </div>
 
-    <li class="nav-item" ng-show="logged">
+    <li class="nav-item" ng-show="logged  && is_admin">
      <a href="#!/users" class="nav-link">
       <i class="fas fa-fw fa-users"></i>
       <span>Utenti</span>
